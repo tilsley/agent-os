@@ -1,6 +1,7 @@
 # ADR-0046: The coder loop — coding as a trade of the loop-executor, not a new lane
 
-- **Status:** Proposed
+- **Status:** Accepted (amended 2026-07-26 — see Amendment below: the workspace
+  lifecycle went executor-side and the credential step down never happened)
 - **Date:** 2026-07-19
 
 ## Context
@@ -79,3 +80,61 @@ the most.
   A2A surface need the small corresponding updates.
 - Out of scope here: PR auto-opening, warm workspace caches (the [0045] sandbox-manager
   lifecycle backlog), and multi-repo runs.
+
+## Amendment (2026-07-26): executor-side git — the step down never happened
+
+Implementing the workspace lifecycle (commits 6545651…566b92f) falsified one premise and
+strengthened the decision. Recorded here because the field findings are the value.
+
+**The premise that broke.** The lifecycle assumed `git clone` *inside* the workspace
+(§3's "requires the session's PUBLIC/VPC egress mode and git in the sandbox image").
+Probed on the AgentCore Code Interpreter: **no git, and no network egress at all**
+(api.github.com and pypi unreachable — no way to even install a pure-Python git). The
+first prod proof runs failed cleanly on `git: command not found`. And the zero-egress
+workspace is a security property worth keeping, not a gap to engineer around.
+
+**The pivot.** The git legs moved to the EXECUTOR — ring 2 in [0045]'s model, the trusted
+process that already holds the run's credentials (Fargate task / microVM entrypoint /
+Vertex container, all with egress) — speaking GitHub's Trees + Git Data APIs directly:
+materialize = tree → blobs → `session.writeFile`; push = changed blobs → tree (with
+`base_tree`) → commit → `refs/heads/run/<id>`. Repo bytes cross the trust boundary only
+through the `SandboxProvider` file surface; change detection recomputes git blob ids
+executor-side, so nothing else is needed from the sandbox.
+
+**The credential consequence — the headline.** The Decision priced in a *bounded step
+down* from [0034]: the token would enter the workspace for the clone/push legs. That
+price was never paid. **The installation token now never enters the workspace on any
+substrate** — "the secret never enters the agent" holds verbatim, and the token cannot
+leak via the artifact under the agent's control. The git-proxy graduation is largely
+mooted: the executor IS the choke point (it only ever creates `run/<id>` refs — the
+branch-namespace policy is code, not org configuration; default-branch protection drops
+to defense in depth against a compromised executor rather than the sole guard).
+
+**Substrate lessons banked while proving it** (each one commit, each found by a failing
+proof run — details in the commit messages):
+
+- The Code Interpreter's command channel is PTY-like: raw `cat` returns LF→CRLF with the
+  trailing newline trimmed (every cloned file "changed"), and its filesystem ships the
+  interpreter's own home files (`.ipython/…`). Reads go via base64; clone snapshots the
+  preexisting files and finalize excludes them; finalize computes blob shas in ONE
+  in-session shell pass instead of N API reads; a mass-deletion guard refuses to push a
+  half-vanished baseline (a broken file surface, not agent intent).
+- **AgentCore Runtime freezes the microVM the moment the invocation response is sent —
+  `/ping HealthyBusy` does not hold it live.** The fire-and-forget 202 ([0042]'s
+  async-job reading, now corrected) left runs frozen mid-push; one thawed and flushed a
+  perfectly clean commit only when its session was explicitly stopped. The agentcore
+  entrypoint now processes the run INSIDE the invocation (an in-flight invocation is the
+  liveness guarantee); the dispatcher treats a dropped long-lived response as benign
+  unless the run was never claimed.
+- A throwing tool no longer kills the run — errors return to the model as tool results
+  (a `read_file("/README.md")` guess used to be fatal), and adapters collapse
+  absolute-looking paths into the workspace.
+
+**Proof** (the Consequences' "one run per substrate"): `run/9615fa2a…` (Fargate) and
+`run/7df7e008…` (AgentCore microVM) on tilsley/chart-val, each containing exactly the one
+intended file. The Vertex leg needs only the key seam (GCP Secret Manager →
+`GITHUB_APP_PRIVATE_KEY`; the code already reads the env var) and a real Model-B sandbox
+— [0047](0047-gcp-coder-sandbox-e2b.md)'s subject.
+
+**POC bounds** (logged, not silent): text files only, ≤200 files, ≤400 KB/file; big-repo
+support stays on the [0045] sandbox-manager backlog.
