@@ -34,7 +34,14 @@ export class AgentCoreSandboxProvider implements SandboxProvider {
     region: string,
     endpoint?: string,
   ) {
-    this.client = new BedrockAgentCoreClient({ region, endpoint });
+    // Bounded waits: the SDK's default is NO request timeout, so one stalled
+    // connection hangs a run forever (field-tested: a microVM run sat silent 20+
+    // minutes mid-call). Better a visible failure the lifecycle can report.
+    this.client = new BedrockAgentCoreClient({
+      region,
+      endpoint,
+      requestHandler: { connectionTimeout: 5_000, requestTimeout: 120_000 },
+    });
   }
 
   async startSession(): Promise<SandboxSession> {
@@ -113,7 +120,7 @@ export class AgentCoreSandboxProvider implements SandboxProvider {
 
       async writeFiles(files: { path: string; content: string }[]): Promise<void> {
         // writeFiles is natively batched — chunk to keep each invoke payload modest.
-        const MAX_CHUNK_BYTES = 800_000;
+        const MAX_CHUNK_BYTES = 100_000; // keep each invoke payload well under service limits
         let chunk: { path: string; text: string }[] = [];
         let bytes = 0;
         const flush = async () => {

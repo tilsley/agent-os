@@ -27,7 +27,13 @@ export class BedrockInferenceProvider implements InferenceProvider {
   // platform's ambient creds), which is the prior behaviour.
   constructor(private modelId: string, region: string, credentials?: AwsCredentialIdentityProvider) {
     this.model = modelId;
-    this.client = new BedrockRuntimeClient({ region, ...(credentials ? { credentials } : {}) });
+    // bounded waits: no SDK default request timeout — a stalled converse call would
+    // otherwise hang the run silently (same stance as the AgentCore sandbox client)
+    this.client = new BedrockRuntimeClient({
+      region,
+      requestHandler: { connectionTimeout: 5_000, requestTimeout: 180_000 },
+      ...(credentials ? { credentials } : {}),
+    });
   }
 
   async generate(messages: Message[], tools: ToolDef[], opts: GenerateOptions): Promise<AssistantTurn> {

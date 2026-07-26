@@ -69,8 +69,13 @@ Bun.serve({
       }
       // coder workspace credential (ADR-0046) — the invoke-payload leg of the dispatch envelope
       const githubToken = typeof payload.githubToken === "string" ? payload.githubToken : undefined;
-      void executeRun(runId, githubToken); // fire-and-forget: the ack returns, /ping goes busy
-      return Response.json({ accepted: true, runId }, { status: 202 });
+      // SYNCHRONOUS on purpose: Runtime freezes the microVM once the invocation
+      // response is sent — fire-and-forget work stalls mid-flight (field-tested:
+      // a run's finalize sat frozen 30 min and only flushed when the session was
+      // stopped). An in-flight invocation is the liveness guarantee, so hold the
+      // response until the run is done; the dispatcher ignores this response.
+      await executeRun(runId, githubToken);
+      return Response.json({ done: true, runId }, { status: 200 });
     }
     return Response.json({ error: "not found" }, { status: 404 });
   },

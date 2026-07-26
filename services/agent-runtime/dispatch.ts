@@ -169,8 +169,10 @@ export function agentCoreConfigFromEnv(env: Record<string, string | undefined> =
 
 /** managed profile (ADR-0042): InvokeAgentRuntime session-per-run — our loop container in
  *  a dedicated microVM. runtimeSessionId = run.id (a UUID, 36 chars — over Runtime's
- *  33-char floor), so a run IS a session and never shares a microVM. The entrypoint acks
- *  202 and works in the background (HealthyBusy), mirroring the RunTask fire-and-forget.
+ *  33-char floor), so a run IS a session and never shares a microVM. The entrypoint
+ *  processes the run INSIDE the invocation (Runtime freezes the microVM once the
+ *  response is sent, so background work stalls); this send resolves when the run
+ *  ends and we don't wait on it — watchers poll the run store as everywhere else.
  *  kind="claude-code" runs route to the Fargate fallback when configured — the one lane
  *  that stays on ECS in this profile; without a fallback they fail terminally at
  *  dispatch, visible to the poller, same stance as runTaskDispatch's missing cc config. */
@@ -207,6 +209,14 @@ export function agentCoreDispatch(
       );
       console.log(`dispatched run ${run.id} -> agentcore session ${run.id} (status ${res.statusCode ?? "?"})`);
     })().catch(async (e) => {
+      // The invocation now spans the whole run, so a client-side drop (timeout,
+      // frozen caller) can outlive a HEALTHY run — only mark failed if the run
+      // never got claimed (i.e. delivery itself failed).
+      const current = await runStore.get(run.id).catch(() => undefined);
+      if (current && current.status !== "queued") {
+        console.warn(`InvokeAgentRuntime response lost for run ${run.id} (status=${current.status}) — run proceeds: ${e?.message ?? e}`);
+        return;
+      }
       console.error(`InvokeAgentRuntime dispatch failed for run ${run.id}: ${e?.message ?? e}`);
       await runStore
         .update(run.id, { status: "failed", error: `dispatch failed: ${e?.message ?? e}` })

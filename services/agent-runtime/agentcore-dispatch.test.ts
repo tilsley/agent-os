@@ -26,6 +26,7 @@ function harness(opts: { kind?: string; sendError?: Error } = {}) {
   } as any;
   const runStore = {
     name: "memory",
+    get: async () => undefined, // still queued from the dispatcher's viewpoint
     update: async (id: string, patch: any) => void updates.push({ id, ...patch }),
   } as any;
   const registry = { get: async () => (opts.kind ? { name: "a", kind: opts.kind } : undefined) } as any;
@@ -69,6 +70,15 @@ test("an InvokeAgentRuntime failure marks the run failed", async () => {
   await settle();
   expect(h.updates[0]?.status).toBe("failed");
   expect(h.updates[0]?.error).toContain("boom");
+});
+
+test("a lost invocation response does NOT fail a run that was already claimed", async () => {
+  // the invocation now spans the whole run — a dropped client connection is normal
+  const h = harness({ kind: "loop", sendError: new Error("socket hang up") });
+  h.runStore.get = async () => ({ id: "r", status: "running" });
+  agentCoreDispatch(config, h.runStore, h.registry, undefined, h.client)(makeRun("scribe"));
+  await settle();
+  expect(h.updates).toHaveLength(0);
 });
 
 test("config comes from AGENTCORE_RUNTIME_ARN and fails closed without it", () => {
