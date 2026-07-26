@@ -94,16 +94,37 @@ export class AgentCoreSandboxProvider implements SandboxProvider {
       runCmd,
 
       async readFile(path: string): Promise<string> {
-        // The native readFiles result shape is awkward to parse reliably; cat via
-        // the (working) command channel is uniform and correct for text files.
-        const { stdout, stderr, exitCode } = await runCmd(`cat -- ${shellQuote(path)}`);
+        // The command channel is PTY-like: raw `cat` comes back with LF→CRLF and a
+        // trimmed trailing newline (field-tested: it made every cloned file look
+        // modified). base64 survives the terminal untouched; decode executor-side.
+        const { stdout, stderr, exitCode } = await runCmd(`base64 < ${shellQuote(path)}`);
         if (exitCode !== 0) throw new Error(`readFile failed: ${path}: ${stderr || stdout}`);
-        return stdout;
+        return Buffer.from(stdout.replace(/\s+/g, ""), "base64").toString("utf8");
       },
 
       async writeFile(path: string, content: string): Promise<void> {
         const { isError, text } = await invoke("writeFiles", { content: [{ path, text: content }] });
         if (isError) throw new Error(`writeFile failed: ${path}: ${text}`);
+      },
+
+      async writeFiles(files: { path: string; content: string }[]): Promise<void> {
+        // writeFiles is natively batched — chunk to keep each invoke payload modest.
+        const MAX_CHUNK_BYTES = 800_000;
+        let chunk: { path: string; text: string }[] = [];
+        let bytes = 0;
+        const flush = async () => {
+          if (!chunk.length) return;
+          const { isError, text } = await invoke("writeFiles", { content: chunk });
+          if (isError) throw new Error(`writeFiles failed (${chunk.length} files): ${text}`);
+          chunk = [];
+          bytes = 0;
+        };
+        for (const f of files) {
+          if (bytes + f.content.length > MAX_CHUNK_BYTES) await flush();
+          chunk.push({ path: f.path, text: f.content });
+          bytes += f.content.length;
+        }
+        await flush();
       },
 
       async listFiles(): Promise<string[]> {

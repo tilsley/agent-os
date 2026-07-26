@@ -129,6 +129,23 @@ test("a deleted file becomes a sha:null tree entry", async () => {
   }
 });
 
+test("sandbox-native files and run-produced binaries stay out of the push", async () => {
+  const gh = fakeGitHub();
+  try {
+    const { session, files } = fakeSession();
+    files.set(".ipython/profile_default/startup/README", "interpreter home junk\n"); // pre-dates the clone
+    const ws = await cloneCoderWorkspace(session, "o/r", "t", "run-5");
+    files.set("artifact.sqlite", "SQLite format 3\0garbage"); // run-produced binary
+    files.set("NOTES.md", "real work\n");
+    const note = await ws.finalize();
+    expect(note).toContain("pushed 1 change(s)");
+    const tree = gh.posts.find((p) => p.path.endsWith("/git/trees"));
+    expect(tree?.body.tree.map((e: any) => e.path)).toEqual(["NOTES.md"]);
+  } finally {
+    gh.restore();
+  }
+});
+
 test("an unreachable repo fails the clone visibly", async () => {
   const gh = fakeGitHub();
   try {

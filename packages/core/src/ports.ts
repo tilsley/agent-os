@@ -79,6 +79,9 @@ export interface SandboxSession {
   runCmd(cmd: string, opts?: RunCmdOptions): Promise<CmdResult>;
   readFile(path: string): Promise<string>;
   writeFile(path: string, content: string): Promise<void>;
+  /** Optional batch write — backends with per-call round-trip cost (AgentCore's
+   *  Code Interpreter API) implement this so bulk materialization isn't N calls. */
+  writeFiles?(files: { path: string; content: string }[]): Promise<void>;
   /** Relative file paths in the workspace (recursive; excludes node_modules/.git). */
   listFiles(): Promise<string[]>;
   fileExists(path: string): Promise<boolean>;
