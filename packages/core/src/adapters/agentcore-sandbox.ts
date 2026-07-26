@@ -21,6 +21,10 @@ import type {
 
 const shellQuote = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
 
+// The port's paths are workspace-relative; models sometimes guess "/README.md".
+// The local adapter's path.join collapses that into the workdir — match it here.
+const rel = (p: string) => p.replace(/^\/+/, "");
+
 export class AgentCoreSandboxProvider implements SandboxProvider {
   readonly name = "agentcore";
   private client: BedrockAgentCoreClient;
@@ -97,13 +101,13 @@ export class AgentCoreSandboxProvider implements SandboxProvider {
         // The command channel is PTY-like: raw `cat` comes back with LF→CRLF and a
         // trimmed trailing newline (field-tested: it made every cloned file look
         // modified). base64 survives the terminal untouched; decode executor-side.
-        const { stdout, stderr, exitCode } = await runCmd(`base64 < ${shellQuote(path)}`);
+        const { stdout, stderr, exitCode } = await runCmd(`base64 < ${shellQuote(rel(path))}`);
         if (exitCode !== 0) throw new Error(`readFile failed: ${path}: ${stderr || stdout}`);
         return Buffer.from(stdout.replace(/\s+/g, ""), "base64").toString("utf8");
       },
 
       async writeFile(path: string, content: string): Promise<void> {
-        const { isError, text } = await invoke("writeFiles", { content: [{ path, text: content }] });
+        const { isError, text } = await invoke("writeFiles", { content: [{ path: rel(path), text: content }] });
         if (isError) throw new Error(`writeFile failed: ${path}: ${text}`);
       },
 
@@ -121,7 +125,7 @@ export class AgentCoreSandboxProvider implements SandboxProvider {
         };
         for (const f of files) {
           if (bytes + f.content.length > MAX_CHUNK_BYTES) await flush();
-          chunk.push({ path: f.path, text: f.content });
+          chunk.push({ path: rel(f.path), text: f.content });
           bytes += f.content.length;
         }
         await flush();
@@ -138,7 +142,7 @@ export class AgentCoreSandboxProvider implements SandboxProvider {
       },
 
       async fileExists(path: string): Promise<boolean> {
-        const { stdout } = await runCmd(`[ -e ${shellQuote(path)} ] && echo __E__ || true`);
+        const { stdout } = await runCmd(`[ -e ${shellQuote(rel(path))} ] && echo __E__ || true`);
         return stdout.includes("__E__");
       },
 

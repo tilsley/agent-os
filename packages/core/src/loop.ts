@@ -120,8 +120,13 @@ export async function runOnSession(opts: RunOnSessionOpts): Promise<RunResult> {
         const tool = byName.get(call.name);
         console.log(`\n🛠  ${call.name} ${truncate(JSON.stringify(call.input), 300)}`);
 
+        // A failing tool is feedback for the model, not a run-fatal crash — return
+        // the error as the tool result so it can correct course (field-tested: an
+        // absolute-path read_file guess used to kill the whole run).
         let output = tool
-          ? await telemetry.step(`tool.${call.name}`, { "tool.name": call.name }, () => tool.run(call.input)) // do
+          ? await telemetry
+              .step(`tool.${call.name}`, { "tool.name": call.name }, () => tool.run(call.input)) // do
+              .catch((e: any) => `error: ${e?.message ?? String(e)}`)
           : `error: unknown tool "${call.name}"`;
 
         const verdict = await telemetry.step("guard.screen", { "guard.direction": "output" }, async (span) => {
