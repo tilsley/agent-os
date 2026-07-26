@@ -7,7 +7,7 @@
  *     invoke payload) and never onto the Run record.
  */
 import { test, expect } from "bun:test";
-import { generateKeyPairSync, createVerify } from "node:crypto";
+import { generateKeyPairSync, createVerify, createHash } from "node:crypto";
 import type { Run } from "@agent-os/core";
 import { appJwt } from "./github-app";
 import { cloneCoderWorkspace } from "./coder-workspace";
@@ -27,53 +27,116 @@ test("appJwt is RS256-verifiable with GitHub's claim shape", () => {
   expect(ok).toBe(true);
 });
 
-// --- workspace lifecycle ----------------------------------------------------
+// --- workspace lifecycle (executor-side git over the GitHub API) -------------
 
-/** A scripted sandbox session: maps a command substring to its result. */
-function fakeSession(script: Record<string, { exitCode?: number; stdout?: string }>) {
-  const commands: string[] = [];
+/** An in-memory sandbox file surface — the workspace the loop edits. */
+function fakeSession() {
+  const files = new Map<string, string>();
   return {
-    commands,
+    files,
     session: {
       id: "s1",
-      runCmd: async (cmd: string) => {
-        commands.push(cmd);
-        const hit = Object.entries(script).find(([k]) => cmd.includes(k));
-        return { exitCode: hit?.[1].exitCode ?? 0, stdout: hit?.[1].stdout ?? "", stderr: "" };
+      writeFile: async (p: string, c: string) => void files.set(p, c),
+      readFile: async (p: string) => {
+        const c = files.get(p);
+        if (c == null) throw new Error("no such file");
+        return c;
       },
+      listFiles: async () => [...files.keys()],
+      runCmd: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
     } as any,
   };
 }
 
-test("clone → edit → finalize pushes run/<id>, with the token only ever in extraheader", async () => {
-  const { session, commands } = fakeSession({
-    "rev-parse HEAD": { stdout: "aaaa1111\n" },
-    "rev-parse origin/HEAD": { stdout: "bbbb2222\n" }, // HEAD moved ⇒ push
-  });
-  const ws = await cloneCoderWorkspace(session, "tilsley/scratch", "ghs_tok", "run-1");
-  const note = await ws.finalize();
-  expect(note).toContain("tilsley/scratch@run/run-1");
-  expect(commands[0]).toContain("clone --depth 50 https://github.com/tilsley/scratch.git .");
-  const push = commands.find((c) => c.includes("push"));
-  expect(push).toContain("refs/heads/run/run-1");
-  expect(push).not.toContain("ghs_tok"); // basic-auth b64 in extraheader, never the raw token
-  // the token must never be persisted where read_file could reach it
-  expect(commands.some((c) => c.includes("credential") || c.includes("askpass"))).toBe(false);
+/** A fake GitHub Data API over global fetch: one repo, one README at HEAD. */
+function fakeGitHub() {
+  const posts: { path: string; body: any }[] = [];
+  const readme = "hello\n";
+  // the finalize diff recomputes git blob ids, so the fixture sha must be the real one
+  const readmeSha = createHash("sha1").update(`blob ${readme.length}\0`).update(readme).digest("hex");
+  const routes: Record<string, any> = {
+    "GET /repos/o/r": { default_branch: "main" },
+    "GET /repos/o/r/git/ref/heads%2Fmain": { object: { sha: "headsha" } },
+    "GET /repos/o/r/git/commits/headsha": { tree: { sha: "treesha" } },
+    "GET /repos/o/r/git/trees/treesha?recursive=1": {
+      truncated: false,
+      tree: [{ path: "README.md", mode: "100644", type: "blob", sha: readmeSha, size: readme.length }],
+    },
+    [`GET /repos/o/r/git/blobs/${readmeSha}`]: { content: Buffer.from(readme).toString("base64") },
+    "POST /repos/o/r/git/blobs": { sha: "newblobsha" },
+    "POST /repos/o/r/git/trees": { sha: "newtreesha" },
+    "POST /repos/o/r/git/commits": { sha: "newcommitsha" },
+    "POST /repos/o/r/git/refs": { ref: "created" },
+  };
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (url: any, init?: any) => {
+    const method = init?.method ?? "GET";
+    const path = String(url).replace("https://api.github.com", "");
+    const hit = routes[`${method} ${path}`];
+    if (!hit) return new Response("not found", { status: 404 });
+    if (method === "POST") posts.push({ path, body: JSON.parse(init.body) });
+    return Response.json(hit);
+  }) as any;
+  return { posts, restore: () => void (globalThis.fetch = original) };
+}
+
+test("materialize → edit → finalize pushes run/<id> via the Data API; token stays out of the sandbox", async () => {
+  const gh = fakeGitHub();
+  try {
+    const { session, files } = fakeSession();
+    const ws = await cloneCoderWorkspace(session, "o/r", "ghs_tok", "run-1");
+    expect(files.get("README.md")).toBe("hello\n"); // baseline materialized
+    expect([...files.values()].join()).not.toContain("ghs_tok"); // nothing token-shaped in the workspace
+    files.set("README.md", "hello\nedited\n");
+    files.set("NEW.md", "new\n");
+    const note = await ws.finalize();
+    expect(note).toContain("o/r@run/run-1");
+    const ref = gh.posts.find((p) => p.path.endsWith("/git/refs"));
+    expect(ref?.body.ref).toBe("refs/heads/run/run-1"); // never the default branch
+    const commit = gh.posts.find((p) => p.path.endsWith("/git/commits"));
+    expect(commit?.body.parents).toEqual(["headsha"]);
+    const tree = gh.posts.find((p) => p.path.endsWith("/git/trees"));
+    expect(tree?.body.base_tree).toBe("treesha");
+    expect(tree?.body.tree).toHaveLength(2); // the edit + the new file
+  } finally {
+    gh.restore();
+  }
 });
 
 test("an unchanged workspace pushes nothing", async () => {
-  const { session, commands } = fakeSession({
-    "rev-parse HEAD": { stdout: "same\n" },
-    "rev-parse origin/HEAD": { stdout: "same\n" },
-  });
-  const ws = await cloneCoderWorkspace(session, "tilsley/scratch", "t", "run-2");
-  expect(await ws.finalize()).toContain("nothing pushed");
-  expect(commands.some((c) => c.includes("push"))).toBe(false);
+  const gh = fakeGitHub();
+  try {
+    const { session } = fakeSession();
+    const ws = await cloneCoderWorkspace(session, "o/r", "t", "run-2");
+    expect(await ws.finalize()).toContain("nothing pushed");
+    expect(gh.posts).toHaveLength(0);
+  } finally {
+    gh.restore();
+  }
 });
 
-test("a failed clone throws (the run fails, visibly)", async () => {
-  const { session } = fakeSession({ clone: { exitCode: 128, stdout: "fatal: repo not found" } });
-  await expect(cloneCoderWorkspace(session, "tilsley/nope", "t", "run-3")).rejects.toThrow("clone");
+test("a deleted file becomes a sha:null tree entry", async () => {
+  const gh = fakeGitHub();
+  try {
+    const { session, files } = fakeSession();
+    const ws = await cloneCoderWorkspace(session, "o/r", "t", "run-3");
+    files.delete("README.md");
+    await ws.finalize();
+    const tree = gh.posts.find((p) => p.path.endsWith("/git/trees"));
+    expect(tree?.body.tree).toEqual([{ path: "README.md", mode: "100644", type: "blob", sha: null }]);
+  } finally {
+    gh.restore();
+  }
+});
+
+test("an unreachable repo fails the clone visibly", async () => {
+  const gh = fakeGitHub();
+  try {
+    const { session } = fakeSession();
+    await expect(cloneCoderWorkspace(session, "o/nope", "t", "run-4")).rejects.toThrow("GitHub GET /repos/o/nope");
+  } finally {
+    gh.restore();
+  }
 });
 
 // --- dispatch envelope ------------------------------------------------------

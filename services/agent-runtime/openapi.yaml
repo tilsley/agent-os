@@ -371,7 +371,7 @@ components:
           pattern: "^[a-z0-9][a-z0-9-]{0,62}$"
         kind:
           type: string
-          enum: [loop, sandboxed, claude-code]
+          enum: [loop, sandboxed, claude-code, coder]
           default: loop
         model: { type: string, maxLength: 128 }
         systemPrompt: { type: string, maxLength: 8000 }
