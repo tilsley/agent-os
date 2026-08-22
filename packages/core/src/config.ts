@@ -14,6 +14,7 @@ import { GatewayInferenceProvider } from "./adapters/gateway-inference";
 import { OpenAIGatewayInferenceProvider } from "./adapters/openai-gateway-inference";
 import { AgentCoreSandboxProvider } from "./adapters/agentcore-sandbox";
 import { E2BSandboxProvider } from "./adapters/e2b-sandbox";
+import { AgentSandboxProvider } from "./adapters/agent-sandbox";
 import { LocalSandboxProvider } from "./adapters/local-sandbox";
 import { BedrockContentGuard } from "./adapters/bedrock-guard";
 import { NoopContentGuard } from "./adapters/noop-guard";
@@ -138,6 +139,17 @@ export function providersFromEnv(env: Env = process.env): Providers {
         );
       case "e2b": // remote Firecracker microVM per session (ADR-0019); needs E2B_API_KEY
         return new E2BSandboxProvider({ apiKey: env.E2B_API_KEY, template: env.E2B_TEMPLATE });
+      case "agent-sandbox":
+        // in-cluster pod-per-session via kubernetes-sigs/agent-sandbox (prototype closing
+        // ADR-0003's "K8s adapter -> k3s" gap). AGENT_SANDBOX_API_SERVER_URL (a `kubectl
+        // proxy` URL) lets an off-cluster process reach local k3s around Bun's client-cert
+        // mTLS gap (ADR-0012); in-cluster callers leave it unset.
+        return new AgentSandboxProvider({
+          namespace: env.AGENT_SANDBOX_NAMESPACE,
+          image: env.AGENT_SANDBOX_IMAGE,
+          apiServerUrl: env.AGENT_SANDBOX_API_SERVER_URL,
+          startupTimeoutMs: env.AGENT_SANDBOX_STARTUP_TIMEOUT_MS ? Number(env.AGENT_SANDBOX_STARTUP_TIMEOUT_MS) : undefined,
+        });
       case "local":
         return new LocalSandboxProvider(); // ⚠ DEMO ONLY — runs code on host, no isolation
       default:
