@@ -1,0 +1,12 @@
+{
+  "name": "agent-os-coder-template",
+  "private": true,
+  "description": "E2B v2 build for the agent-os-coder Model-B coder sandbox (ADR-0047)",
+  "type": "module",
+  "scripts": {
+    "build": "bun run build.ts"
+  },
+  "dependencies": {
+    "e2b": "^2.45.0"
+  }
+}

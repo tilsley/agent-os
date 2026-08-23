@@ -25,8 +25,13 @@
  *
  *   AIP_HTTP_PORT=8080 DISPATCH=inprocess bun run services/agent-runtime/agent-engine.ts
  */
-import { providersFromEnv } from "@agent-os/core";
+import { providersFromEnv, resolveSecretEnv } from "@agent-os/core";
 import { createApp } from "./app";
+
+// Resolve secret ENV references before providers read them (ADR-0047): the E2B coder
+// sandbox key arrives as E2B_API_KEY_SECRET (a Secret Manager reference), never as
+// plaintext in the Agent Runtime config — the loop's own SA fetches the value here.
+await resolveSecretEnv("E2B_API_KEY");
 
 const providers = providersFromEnv(); // once per process (OTel registers globally)
 const { runStore: store } = providers;

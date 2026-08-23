@@ -96,7 +96,38 @@ new gcp.projects.IAMMember("runtime-datastore-user", {
   member: pulumi.interpolate`serviceAccount:${runtimeSa.email}`,
 });
 
+// --- E2B coder sandbox credential (ADR-0047) --------------------------------------
+// The GCP coder loop's `do` runs on E2B (session-native Model B); E2B authenticates
+// with an API key. We keep the key OUT of the Agent Runtime deploy config: Pulumi
+// creates the Secret Manager secret + grants the loop SA accessor, and the key VALUE
+// is added out-of-band (`gcloud secrets versions add`) so it never lands in Pulumi
+// state or git. The loop resolves it at startup via E2B_API_KEY_SECRET (resolveSecretEnv).
+const secretManagerApi = new gcp.projects.Service("secretmanager-api", {
+  project,
+  service: "secretmanager.googleapis.com",
+  disableOnDestroy: false,
+});
+
+const e2bApiKey = new gcp.secretmanager.Secret(
+  "e2b-api-key",
+  {
+    project,
+    secretId: "e2b-api-key",
+    replication: { auto: {} },
+  },
+  { dependsOn: [secretManagerApi] },
+);
+
+// Least privilege: the loop SA reads (only) this secret; no project-wide accessor.
+new gcp.secretmanager.SecretIamMember("runtime-e2b-key-accessor", {
+  project,
+  secretId: e2bApiKey.secretId,
+  role: "roles/secretmanager.secretAccessor",
+  member: pulumi.interpolate`serviceAccount:${runtimeSa.email}`,
+});
+
 export const artifactRepo = pulumi.interpolate`${region}-docker.pkg.dev/${project}/${repo.repositoryId}`;
+export const e2bApiKeySecret = pulumi.interpolate`projects/${project}/secrets/${e2bApiKey.secretId}/versions/latest`;
 export const runtimeServiceAccount = runtimeSa.email;
 export const gcpRegion = region;
 export const firestoreDatabase = runsDb.name;

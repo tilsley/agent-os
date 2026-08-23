@@ -26,6 +26,7 @@ export * from "./adapters/gateway-inference"; // inference-gateway client (ADR-0
 export * from "./adapters/agentcore-sandbox";
 export * from "./adapters/e2b-sandbox";
 export * from "./adapters/local-sandbox";
+export * from "./adapters/gcp-secrets"; // GCP Secret Manager resolver — secret refs at boot (ADR-0047)
 // guard
 export * from "./adapters/bedrock-guard";
 export * from "./adapters/noop-guard";

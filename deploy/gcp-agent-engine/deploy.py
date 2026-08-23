@@ -67,10 +67,14 @@ ENV_VARS = {
     # transcript into a Vertex Agent Engine Session under this reasoningEngine, so runs
     # surface in its console. Same stable managed-state host as the Memory Bank parent.
     "GCP_SESSION_ENGINE_ID": "2592534069086519296",
-    # The default agentcore sandbox needs AWS creds (unavailable on GCP); `local` runs in
-    # the session's own microVM — fine for the spike (the demo task calls no tools). A GCP
-    # sandbox (Code Execution / Sandbox BYOC) adapter is a later phase.
-    "SANDBOX_PROVIDER": "local",
+    # The `do` surface: E2B session-native Model-B sandbox (ADR-0047) — a Firecracker
+    # microVM per session with a real Go/JDK/Node toolchain, so the coder loop compiles
+    # and tests in-box. E2B_API_KEY is NOT here: only a Secret Manager *reference*; the
+    # loop's SA resolves it at startup (resolveSecretEnv), keeping the key out of this
+    # config. Build the template first — deploy/e2b-coder/README.md.
+    "SANDBOX_PROVIDER": "e2b",
+    "E2B_TEMPLATE": "agent-os-coder",
+    "E2B_API_KEY_SECRET": f"projects/{PROJECT}/secrets/e2b-api-key/versions/latest",
     "AIP_HTTP_PORT": "8080",
 }
 

@@ -1,1 +1,2 @@
-encryptionsalt: v1:Gnwm0dSs93o=:v1:QyylOOehWbXd+jIE:dzm/2aGYsPyE2Kne17fOO4EGga6GNA==
+secretsprovider: gcpkms://projects/decent-decker-270921/locations/europe-west2/keyRings/pulumi/cryptoKeys/stack-secrets
+encryptedkey: CiQA2Z+k76ObZ157hUDonY7qQ0iP1jOmxJKVWSfC07kqFx5RSnYSSQCtCInUWvDVseE6f/ptNposmNGt/NwNymJ8GYn9nzlU3wenb4r+zcCK/YFEkJDC2htlsO666Yiottfcodacy3786ZyHPZbP0hs=
