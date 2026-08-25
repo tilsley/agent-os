@@ -44,11 +44,26 @@ export class E2BSandboxProvider implements SandboxProvider {
 
 async function defaultCreate(opts: E2BOptions): Promise<E2BBox> {
   const { Sandbox } = (await import("@e2b/code-interpreter")) as any;
-  return Sandbox.create({
+  return createWith(Sandbox, opts);
+}
+
+/** The E2B `Sandbox` surface we call — just the `create` factory. */
+type E2BSandboxCtor = { create: (...args: any[]) => Promise<E2BBox> };
+
+/**
+ * Build a sandbox from the injected E2B `Sandbox` factory. Exported as the test seam that
+ * pins E2B's calling convention: `create` takes the template as the FIRST POSITIONAL
+ * argument — `create(template, opts)`. `template` is NOT a field of SandboxOpts, so passing
+ * it inside the options object is silently dropped and the account-DEFAULT image is used
+ * (verified live: our agent-os-coder toolchain went missing — no Gradle, wrong Go — until
+ * this was made positional). Only the remaining knobs go in the opts object.
+ */
+export function createWith(Sandbox: E2BSandboxCtor, opts: E2BOptions): Promise<E2BBox> {
+  const sandboxOpts = {
     ...(opts.apiKey ? { apiKey: opts.apiKey } : {}),
-    ...(opts.template ? { template: opts.template } : {}),
     ...(opts.timeoutMs ? { timeoutMs: opts.timeoutMs } : {}),
-  });
+  };
+  return opts.template ? Sandbox.create(opts.template, sandboxOpts) : Sandbox.create(sandboxOpts);
 }
 
 class E2BSession implements SandboxSession {

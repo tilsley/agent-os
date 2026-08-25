@@ -3,7 +3,7 @@
  * via an injected fake box — no SDK or API key needed. A live run is gated on E2B_API_KEY.
  */
 import { test, expect } from "bun:test";
-import { E2BSandboxProvider, type E2BBox } from "./e2b-sandbox";
+import { E2BSandboxProvider, createWith, type E2BBox } from "./e2b-sandbox";
 
 function fakeBox(): { box: E2BBox; calls: any } {
   const calls: any = { cmds: [], writes: [], killed: false };
@@ -47,6 +47,35 @@ test("runCode combines stdout logs + text", async () => {
   const { box } = fakeBox();
   const s = await new E2BSandboxProvider({ create: async () => box }).startSession();
   expect(await s.runCode("print(1)")).toBe("line1\nline2\nresult");
+});
+
+test("createWith passes the template as the FIRST positional arg (E2B contract, not an opts field)", async () => {
+  const calls: any[] = [];
+  const { box } = fakeBox();
+  const Sandbox = {
+    create: async (...args: any[]) => {
+      calls.push(args);
+      return box;
+    },
+  };
+  await createWith(Sandbox, { apiKey: "k", template: "agent-os-coder", timeoutMs: 5000 });
+  // template is positional arg 0; everything else rides the opts object at arg 1.
+  expect(calls[0][0]).toBe("agent-os-coder");
+  expect(calls[0][1]).toEqual({ apiKey: "k", timeoutMs: 5000 });
+});
+
+test("createWith omits the template arg entirely when none is set (opts-only overload)", async () => {
+  const calls: any[] = [];
+  const { box } = fakeBox();
+  const Sandbox = {
+    create: async (...args: any[]) => {
+      calls.push(args);
+      return box;
+    },
+  };
+  await createWith(Sandbox, { apiKey: "k" });
+  expect(calls[0][0]).toEqual({ apiKey: "k" }); // opts is arg 0 — no template string
+  expect(calls[0].length).toBe(1);
 });
 
 test("read/write map to files; listFiles uses find; close kills the box", async () => {

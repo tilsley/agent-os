@@ -29,17 +29,35 @@ LOCATION = "europe-west2"
 IMAGE = "europe-west2-docker.pkg.dev/decent-decker-270921/agent-os/agent-runtime:latest"
 SERVICE_ACCOUNT = "agent-runtime@decent-decker-270921.iam.gserviceaccount.com"
 
+# The stable loop engine that `deploy` UPDATES IN PLACE. `agent_engines.create` always
+# mints a NEW engine, so repeated deploys used to litter the project with disposable
+# copies (we cleaned up four); `update` re-images/re-envs THIS one instead. Blank it (or
+# pass `--recreate`) to force a fresh create — which prints the new resource name to paste
+# back here. NB: this is the LOOP engine, deliberately DISTINCT from the Memory Bank /
+# Session host (MEMORY_BANK_ENGINE_ID / GCP_SESSION_ENGINE_ID below), which is parented
+# separately so memories/sessions survive loop redeploys — never point this at that host.
+LOOP_ENGINE = "projects/708495999199/locations/europe-west2/reasoningEngines/900939827799654400"
+
 # Reasoning-engine container_spec takes ONLY the image (no command/env override — the
 # API exposes neither). Everything else is steered by env_vars: the CMD indirection
 # selects the agent-engine.ts entrypoint (AGENT_ENTRYPOINT), the runtime hosts the loop
 # (DISPATCH=inprocess), and INFERENCE_PROVIDER=vertex points the loop at Gemini on Vertex
-# (GCP-native, ADC auth via the runtime service account — no key). GATE is left unset →
-# open authn, since the :query call is already GCP-IAM-gated at the platform; per-tenant
+# (GCP-native, ADC auth via the runtime service account — no key). Authn is OPEN
+# (AUTHN=noop), since the :query call is already GCP-IAM-gated at the platform — the
+# managed runtime doesn't forward a caller bearer to the container, so app-level token
+# authn is unreachable here anyway. NB: GATE=local (set below for budget metering) would
+# otherwise default authn to `token` (config.ts) with an empty GATE_TOKENS, rejecting
+# every run — AUTHN=noop is what actually realizes the "open authn" intent. Per-tenant
 # gate/budget wiring (identity → tenant) is a later phase.
 ENV_VARS = {
     "AGENT_ENTRYPOINT": "services/agent-runtime/agent-engine.ts",
     "DISPATCH": "inprocess",
     "INFERENCE_PROVIDER": "vertex",
+    # Open authn (see header note): the platform's GCP-IAM gate on :query is the real
+    # boundary; without this, GATE=local defaults authn to `token` + empty GATE_TOKENS
+    # and every run 401s. Graduation is AUTHN=gcp-oidc (config.ts) once the front door
+    # mints per-tenant identity.
+    "AUTHN": "noop",
     # GOOGLE_CLOUD_PROJECT is a RESERVED var the platform injects — config.ts reads it
     # (both the Vertex provider and the Firestore run store resolve the project from it).
     "GCP_LOCATION": LOCATION,
@@ -85,24 +103,47 @@ def client():
     return vertexai.Client(project=PROJECT, location=LOCATION)
 
 
+def _engine_name(engine) -> str:
+    # The SDK returns an AgentEngine WRAPPER whose resource name lives at
+    # `.api_resource.name`; fall back through the older attribute shapes too.
+    api = getattr(engine, "api_resource", None)
+    return (
+        getattr(api, "name", None)
+        or getattr(engine, "resource_name", None)
+        or getattr(engine, "name", None)
+        or str(engine)
+    )
+
+
 def deploy(args) -> None:
     c = client()
     image = getattr(args, "image", None) or IMAGE
     display_name = getattr(args, "display_name", None) or "agent-os-loop"
-    print(f"creating Agent Runtime '{display_name}' from {image} ...", file=sys.stderr)
-    engine = c.agent_engines.create(
-        config={
-            "display_name": display_name,
-            "description": "agent-os L1 loop on Vertex Agent Runtime (ADR-0042 GCP sibling)",
-            "container_spec": {"image_uri": image},
-            "env_vars": ENV_VARS,
-            "service_account": SERVICE_ACCOUNT,
-            "min_instances": 0,  # scale to zero — the cost-sensitive win
-            "max_instances": 1,
-        }
-    )
-    name = getattr(engine, "resource_name", None) or getattr(engine, "name", None) or str(engine)
-    print(f"created: {name}")
+    config = {
+        "display_name": display_name,
+        "description": "agent-os L1 loop on Vertex Agent Runtime (ADR-0042 GCP sibling)",
+        "container_spec": {"image_uri": image},
+        "env_vars": ENV_VARS,
+        "service_account": SERVICE_ACCOUNT,
+        "min_instances": 0,  # scale to zero — the cost-sensitive win
+        "max_instances": 1,
+    }
+    # A custom --image/--display-name is a DIFFERENT runtime (e.g. the BYOC probe), so it
+    # always gets its OWN engine — never overwrite the pinned loop engine with it.
+    custom = bool(getattr(args, "image", None) or getattr(args, "display_name", None))
+    if LOOP_ENGINE and not getattr(args, "recreate", False) and not custom:
+        print(f"updating {LOOP_ENGINE} in place from {image} ...", file=sys.stderr)
+        engine = c.agent_engines.update(name=LOOP_ENGINE, config=config)
+        name = _engine_name(engine) or LOOP_ENGINE
+        print(f"updated: {name}")
+    else:
+        why = "--recreate" if getattr(args, "recreate", False) else ("custom image/name" if custom else "LOOP_ENGINE blank")
+        print(f"creating Agent Runtime '{display_name}' from {image} ({why}) ...", file=sys.stderr)
+        engine = c.agent_engines.create(config=config)
+        name = _engine_name(engine)
+        print(f"created: {name}")
+        print("  → pin this as LOOP_ENGINE in deploy.py so future deploys UPDATE it in place "
+              "(and delete the previous engine).", file=sys.stderr)
     print("smoke it:  uv run deploy/gcp-agent-engine/deploy.py query --engine "
           f"{name} --probe", file=sys.stderr)
 
@@ -140,6 +181,8 @@ def main() -> None:
     # display name, reusing the same ENV_VARS bundle.
     d.add_argument("--image", help="override the container image_uri (default: agent-runtime:latest)")
     d.add_argument("--display-name", dest="display_name", help="override the Agent Runtime display name")
+    d.add_argument("--recreate", action="store_true",
+                   help="force a NEW engine instead of updating the pinned LOOP_ENGINE in place")
     q = sub.add_parser("query")
     q.add_argument("--engine", required=True, help="reasoningEngine resource name")
     q.add_argument("--probe", action="store_true", help="probe mode (no model call)")
