@@ -21,13 +21,13 @@ echo "▶ apply the claim CRDs (ADR-0021) + the allowance VAP (slice 6), then th
 # CRD scope is immutable — drop a prior cluster-scoped inferenceclaims CRD before (re)creating
 # it Namespaced (slice 6). Deletes its CRs too; the stack recreates them.
 kubectl --context "$CTX" delete crd inferenceclaims.agent-os.io --ignore-not-found --wait=true >/dev/null
-kubectl --context "$CTX" apply -f charts/agent-os/crds/inferenceclaims.yaml >/dev/null # CRDs live in the chart now
+kubectl --context "$CTX" apply -f deploy/helm/agent-os/crds/inferenceclaims.yaml >/dev/null # CRDs live in the chart now
 for crd in inferenceclaims inferenceallowances; do
   for i in 1 2 3 4 5; do # the just-created CRD's Established condition can lag a beat
     kubectl --context "$CTX" wait --for condition=established crd/$crd.agent-os.io --timeout=10s >/dev/null 2>&1 && break || sleep 2
   done
 done
-helm template agent-os charts/agent-os --show-only templates/claim-policy.yaml | kubectl --context "$CTX" apply -f - >/dev/null # the VAP, from the chart
+helm template agent-os deploy/helm/agent-os --show-only templates/claim-policy.yaml | kubectl --context "$CTX" apply -f - >/dev/null # the VAP, from the chart
 kubectl --context "$CTX" apply -f deploy/local/e2e/stack.yaml >/dev/null    # ns → allowance → claim (in order)
 
 # recreate workloads so they pick up the freshly-loaded image (same tag => no auto-roll)
@@ -77,4 +77,4 @@ for i in $(seq 1 20); do [ -n "$(ready bot2-claim)" ] && [ -n "$(ready caller-cl
 [ "$(ready bot2-claim)"   = "False" ] && echo "✅ bot2-claim (\$95, overflows \$100) → Ready=False (aggregate quota)" || { echo "❌ bot2-claim Ready=$(ready bot2-claim)"; exit 1; }
 kubectl --context "$CTX" -n "$NS" delete inferenceclaim bot2-claim >/dev/null 2>&1 || true
 
-echo "▶ (teardown: kubectl --context $CTX delete ns $NS; kubectl --context $CTX delete -f charts/agent-os/crds/inferenceclaims.yaml)"
+echo "▶ (teardown: kubectl --context $CTX delete ns $NS; kubectl --context $CTX delete -f deploy/helm/agent-os/crds/inferenceclaims.yaml)"

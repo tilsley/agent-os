@@ -4,7 +4,7 @@
 # full gate (authn oidc-sa + authz OPA + kube budget). No gateways, no claims control plane —
 # the cheapest thing that proves the current chart runs keyless on EKS.
 #
-#   helm install agent-os charts/agent-os -n agent-os --create-namespace -f deploy/eks/eks-values.yaml
+#   helm install agent-os deploy/helm/agent-os -n agent-os --create-namespace -f deploy/eks/eks-values.yaml
 #   + kubectl apply -f deploy/eks/tenant-cr.yaml   (the TenantInferenceProfile claim + its RBAC)
 #
 # Namespace MUST be agent-os — that's what the cluster.yaml podIdentityAssociation binds, and

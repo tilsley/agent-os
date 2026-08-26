@@ -93,7 +93,7 @@ async function defaultCreate(opts: AgentSandboxOptions): Promise<AgentSandboxBox
       metadata: { name, namespace },
       spec: {
         podTemplate: {
-          // app: sandbox — inherits charts/sandbox's default-deny-egress + DNS/proxy doors
+          // app: sandbox — inherits deploy/helm/sandbox's default-deny-egress + DNS/proxy doors
           // once that chart is deployed alongside this (not part of this prototype).
           metadata: { labels: { app: "sandbox" } },
           spec: {

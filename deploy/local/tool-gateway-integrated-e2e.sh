@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Integrated tool-gateway e2e (ADR-0011 dir. b / ADR-0029) — proves the tool gateway FOLDED INTO
-# charts/agent-os: ONE `helm install` brings up the agent-runtime AND the tool gateway, and the
+# deploy/helm/agent-os: ONE `helm install` brings up the agent-runtime AND the tool gateway, and the
 # runtime answers an order-status question by resolving + invoking an MCP tool THROUGH the gateway —
 # forwarding only the caller's SA token (oidc-sa, verified by both via TokenReview), holding no tool
 # creds and opening no MCP connection of its own. Unlike deploy/local/tool-gateway-e2e.sh (three
@@ -39,7 +39,7 @@ k -n "$NS" create secret generic aws-creds \
   --dry-run=client -o yaml | k apply -f - >/dev/null
 
 echo "▶ helm upgrade --install $REL (umbrella chart, toolGateway.enabled=true)"
-helm --kube-context "$CTX" upgrade --install "$REL" charts/agent-os -n "$NS" \
+helm --kube-context "$CTX" upgrade --install "$REL" deploy/helm/agent-os -n "$NS" \
   -f deploy/local/tool-gateway-integrated-values.yaml >/dev/null
 k -n "$NS" rollout restart deploy/agent-runtime deploy/tool-gateway >/dev/null 2>&1 || true
 echo "▶ wait for both rollouts"

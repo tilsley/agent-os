@@ -2,10 +2,10 @@
 
 ADR-0020/0022. The invariant: **no anonymous egress** — a sandbox gets zero internet by
 default; the only way out is a named, policied door. **Deployed by the Helm chart
-[`charts/sandbox`](../../charts/sandbox)** (the maintained source of truth — no ad-hoc yaml).
+[`deploy/helm/sandbox`](../../deploy/helm/sandbox)** (the maintained source of truth — no ad-hoc yaml).
 
 ```
-  charts/sandbox  (helm install sandbox -n agentos-sandbox)
+  deploy/helm/sandbox  (helm install sandbox -n agentos-sandbox)
   ├─ NetworkPolicy default-deny-egress   ← the WALL: all pods, deny all egress
   ├─ NetworkPolicy allow-dns             ← DOOR: kube-dns only (no open :53 tunnel)
   ├─ NetworkPolicy allow-sandbox→proxy   ← DOOR: app=sandbox → egress-proxy:3128 only
@@ -17,7 +17,7 @@ default; the only way out is a named, policied door. **Deployed by the Helm char
 
 ```bash
 make sandbox-test        # helm install + assert wall + allowlist, then tear down (KEEP=1 to inspect)
-# or by hand: helm --kube-context colima install sandbox charts/sandbox -n agentos-sandbox --create-namespace
+# or by hand: helm --kube-context colima install sandbox deploy/helm/sandbox -n agentos-sandbox --create-namespace
 ```
 
 Proves: `sandbox → gateway = 200` (the door + DNS), `sandbox → {1.1.1.1, example.com,
@@ -46,7 +46,7 @@ was the problem.
 
 NetworkPolicy can't allowlist *domains* (registries sit behind shifting CDN IPs), so the
 named-domain door is a **forward proxy** (Squid) the sandbox is forced through:
-the `egress-proxy` template in `charts/sandbox`, asserted by `make sandbox-test`.
+the `egress-proxy` template in `deploy/helm/sandbox`, asserted by `make sandbox-test`.
 
 Two independent locks, both proven: allowlisted domains (`.npmjs.org`, `.pypi.org`) tunnel
 through; non-listed (`github.com`, `evil.example`) get **`TCP_DENIED/403` at the proxy** —

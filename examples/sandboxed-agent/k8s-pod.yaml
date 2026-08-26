@@ -1,7 +1,7 @@
 # The sandboxed agent AS A POD — Model B end to end, BEHIND THE EGRESS WALL (ADR-0020/0022).
 # A REAL foreign coding CLI (Claude Code) runs INSIDE the sandbox as an opaque delegated agent;
 # the runtime only launches-and-watches (runSandboxedAgent). Deployed into a namespace locked
-# down by charts/sandbox (default-deny egress + a governed gateway door):
+# down by deploy/helm/sandbox (default-deny egress + a governed gateway door):
 #   • think  → Claude Code → the in-cluster gateway's Anthropic /v1/messages wire → Bedrock  ✅ governed
 #   • do     → Claude Code's write/bash tools; ARBITRARY egress is refused by the wall        ❌ contained
 # It holds no model creds and no auth code: identity is a projected SA token the gateway verifies.

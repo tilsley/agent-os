@@ -19,7 +19,7 @@ CATALOG=(
   "gateway-mesh|gateway-mesh-test.sh|think|full-mode mesh-trust authn (token-less caller, Linkerd-stamped identity)"
   "memory|memory-k3s.sh|remember|durable per-tenant memory survives a pod restart (ADR-0030)"
   "tool-gateway|tool-gateway-e2e.sh|do-tools|an agent composes both choke points (think + do-tools) in-cluster"
-  "tool-gateway-umbrella|tool-gateway-integrated-e2e.sh|do-tools|the tool gateway folded into charts/agent-os (umbrella component)"
+  "tool-gateway-umbrella|tool-gateway-integrated-e2e.sh|do-tools|the tool gateway folded into deploy/helm/agent-os (umbrella component)"
   "tool-gateway-github|tool-gateway-github-e2e.sh|do-tools|a REAL GitHub MCP server through the gateway, broker-injected PAT"
   "dual-gateway|dual-gateway-e2e.sh|do-tools|both gateways: the agent pod holds NEITHER model nor tool creds"
   "sandbox|sandbox-test.sh|do-exec|egress lockdown — the sandbox wall + allowlist (ADR-0020/0022)"

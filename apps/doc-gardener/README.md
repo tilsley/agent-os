@@ -28,7 +28,7 @@ bash apps/doc-gardener/run.sh        # local: dev gateway + the drifted fixture
 bun test                             # detectors + allowlist unit tests (pure)
 ```
 
-In-cluster (k3s, gateway deployed — see `charts/inference-gateway`):
+In-cluster (k3s, gateway deployed — see `deploy/helm/inference-gateway`):
 
 ```bash
 docker build -t doc-gardener:dev apps/doc-gardener

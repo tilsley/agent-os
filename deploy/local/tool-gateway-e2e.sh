@@ -29,7 +29,7 @@ kubectl -n "$GW_NS" create secret generic aws-creds \
   --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 IGW_VALUES="$(mktemp -t tg-igw.XXXX.yaml)"
 printf 'env:\n  CLAIM_SOURCE: static\n  CLAIMS_STATIC: '\''{"%s":{"model":"claude-haiku","monthlyBudgetUsd":5}}'\''\n' "$TENANT" > "$IGW_VALUES"
-helm upgrade --install inference-gateway charts/inference-gateway -n "$GW_NS" --create-namespace -f "$IGW_VALUES" >/dev/null
+helm upgrade --install inference-gateway deploy/helm/inference-gateway -n "$GW_NS" --create-namespace -f "$IGW_VALUES" >/dev/null
 rm -f "$IGW_VALUES"
 kubectl -n "$GW_NS" rollout restart deploy/inference-gateway >/dev/null # pick up the fresh creds
 kubectl -n "$GW_NS" rollout status deploy/inference-gateway --timeout=180s
@@ -41,7 +41,7 @@ TGW_VALUES="$(mktemp -t tg-tgw.XXXX.yaml)"
 # CLAIMS_STATIC binds the agent SA → tenant (oidc-sa authn, no budget needed here); MCP_SERVERS
 # fronts the orders server, scoped to that tenant (so the run also demonstrates the allowlist).
 printf 'env:\n  CLAIMS_STATIC: '\''{"%s":{}}'\''\n  MCP_SERVERS: '\''{"orders":{"transport":"stdio","command":"bun","args":["run","examples/mcp-gateway/mock-mcp-server.ts"],"tenants":["%s"]}}'\''\n' "$TENANT" "$TENANT" > "$TGW_VALUES"
-helm upgrade --install tool-gateway charts/tool-gateway -n "$GW_NS" --create-namespace -f "$TGW_VALUES" >/dev/null
+helm upgrade --install tool-gateway deploy/helm/tool-gateway -n "$GW_NS" --create-namespace -f "$TGW_VALUES" >/dev/null
 rm -f "$TGW_VALUES"
 kubectl -n "$GW_NS" rollout status deploy/tool-gateway --timeout=120s
 

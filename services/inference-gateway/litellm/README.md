@@ -1,7 +1,7 @@
 # LiteLLM inference gateway — the bought engine + our authn & budget hard-stop
 
 > **Superseded by [ADR-0028](../../../docs/decisions/0028-own-the-gateway-engine.md) (executed 2026-06-13).**
-> This is no longer on any serving path — the Bun gateway (`charts/inference-gateway`,
+> This is no longer on any serving path — the Bun gateway (`deploy/helm/inference-gateway`,
 > `services/inference-gateway/server.ts`) is the single engine in both profiles. This directory is
 > kept for two reasons only: it is the second gateway in `deploy/local/gate-conformance.sh` (the
 > parity reference that proves the Bun gate didn't drift), and it is the documented record of the
@@ -148,12 +148,12 @@ export MODEL_ID=claude-haiku             # the alias LiteLLM routes (and the cla
 
 ## In k8s — gateway as a pod, real SA-token identity (validated)
 
-`Dockerfile` (uv-based image) + the `charts/litellm-gateway` chart **(both removed by ADR-0028)** ran
+`Dockerfile` (uv-based image) + the `deploy/helm/litellm-gateway` chart **(both removed by ADR-0028)** ran
 this gateway as a pod in k3s, verifying **real Kubernetes ServiceAccount tokens** against the cluster
 JWKS (`JWT_JWKS_URL`, default mode). Proven at the time: a real projected SA token (`kubectl create
 token … --audience=agent-os-gateway`) → the in-cluster gateway → `402 budget exceeded for tenant
 'system:serviceaccount:default:default'` — JWKS-verified identity + claim + budget, no hand-minted JWT.
-That pod path is now served by `charts/inference-gateway` (the Bun engine, via TokenReview).
+That pod path is now served by `deploy/helm/inference-gateway` (the Bun engine, via TokenReview).
 
 **k8s gotchas found:** the cluster's `/openid/v1/jwks` needs **auth** (anonymous access off), so the
 hook authenticates the JWKS fetch with the gateway pod's **own SA token**; and `SSL_CERT_FILE` =

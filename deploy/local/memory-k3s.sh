@@ -34,7 +34,7 @@ k -n "$NS" create secret generic aws-creds \
   --dry-run=client -o yaml | k apply -f - >/dev/null
 
 echo "▶ helm upgrade --install $REL (AWS-light memory profile)"
-helm --kube-context "$CTX" upgrade --install "$REL" charts/agent-os -n "$NS" \
+helm --kube-context "$CTX" upgrade --install "$REL" deploy/helm/agent-os -n "$NS" \
   -f deploy/local/memory-k3s-values.yaml >/dev/null
 k -n "$NS" rollout restart deploy/agent-runtime >/dev/null 2>&1 || true  # pick up a same-tag rebuild
 echo "▶ wait for rollout"

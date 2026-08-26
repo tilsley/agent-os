@@ -1,6 +1,6 @@
 # agent-os on EKS
 
-The "secure + scales" capstone: the **current** platform (the `charts/agent-os` umbrella) on a
+The "secure + scales" capstone: the **current** platform (the `deploy/helm/agent-os` umbrella) on a
 real EKS cluster, **keyless** end to end via EKS Pod Identity — no `aws-creds` Secret, nothing to
 expire. One entry point: `deploy/eks/run.sh`.
 

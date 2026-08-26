@@ -42,7 +42,7 @@ k -n "$NS" create secret generic github-cred --from-literal=CRED_BROKER_CONFIG="
 unset CFG
 
 echo "▶ helm upgrade --install (umbrella, tool gateway → GitHub remote MCP via the broker)"
-helm --kube-context "$CTX" upgrade --install "$REL" charts/agent-os -n "$NS" \
+helm --kube-context "$CTX" upgrade --install "$REL" deploy/helm/agent-os -n "$NS" \
   -f deploy/local/tool-gateway-github-values.yaml >/dev/null
 k -n "$NS" rollout restart deploy/agent-runtime deploy/tool-gateway >/dev/null 2>&1 || true
 k -n "$NS" rollout status deploy/tool-gateway --timeout=150s

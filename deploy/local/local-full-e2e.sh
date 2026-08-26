@@ -22,7 +22,7 @@ docker save agent-runtime:dev inference-gateway:dev tool-gateway:dev | colima ss
 # the chart's CRDs EXPLICITLY. helm installs crds/ only on a fresh `install`, never on `upgrade`, so a
 # re-run would otherwise leave the just-deleted CRD missing and every claim read would 404.
 k delete crd inferenceclaims.agent-os.io --ignore-not-found --wait=true >/dev/null 2>&1 || true
-k apply -f charts/agent-os/crds/ >/dev/null
+k apply -f deploy/helm/agent-os/crds/ >/dev/null
 k wait --for condition=established crd/inferenceclaims.agent-os.io crd/agents.agent-os.io --timeout=30s >/dev/null 2>&1 || true
 
 echo "▶ namespace + aws-creds (Bedrock — mounted only on the inference gateway)"
@@ -35,7 +35,7 @@ k -n "$NS" create secret generic aws-creds \
   --dry-run=client -o yaml | k apply -f - >/dev/null
 
 echo "▶ helm upgrade --install (EVERYTHING on)"
-helm --kube-context "$CTX" upgrade --install "$REL" charts/agent-os -n "$NS" \
+helm --kube-context "$CTX" upgrade --install "$REL" deploy/helm/agent-os -n "$NS" \
   -f deploy/local/local-full-values.yaml >/dev/null
 
 echo "▶ caller SA + the namespace allowance + the tenant's claim (ADR-0021)"

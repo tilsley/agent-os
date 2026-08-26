@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Both chokepoints, symmetric (ADR-0019 + ADR-0029): the agent pod holds NEITHER model nor tool creds.
 #   think → inference-gateway (the sole holder of Bedrock creds), do-tools → tool-gateway.
-# One `helm install charts/agent-os` with inferenceGateway.enabled + toolGateway.enabled; the runtime
+# One `helm install deploy/helm/agent-os` with inferenceGateway.enabled + toolGateway.enabled; the runtime
 # has NO aws-creds, forwards only its oidc-sa identity to both gateways, and still completes a task
 # that requires reasoning AND a tool call — which proves think went THROUGH the inference gateway
 # (the runtime can't reach Bedrock — it has no creds).
@@ -29,7 +29,7 @@ k -n "$NS" create secret generic aws-creds \
   --dry-run=client -o yaml | k apply -f - >/dev/null
 
 echo "▶ helm upgrade --install (umbrella: BOTH gateways, runtime credential-less)"
-helm --kube-context "$CTX" upgrade --install "$REL" charts/agent-os -n "$NS" \
+helm --kube-context "$CTX" upgrade --install "$REL" deploy/helm/agent-os -n "$NS" \
   -f deploy/local/dual-gateway-values.yaml >/dev/null
 k -n "$NS" rollout restart deploy/agent-runtime deploy/inference-gateway deploy/tool-gateway >/dev/null 2>&1 || true
 for d in inference-gateway tool-gateway agent-runtime; do k -n "$NS" rollout status deploy/$d --timeout=150s; done

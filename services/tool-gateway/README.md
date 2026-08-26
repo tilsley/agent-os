@@ -50,8 +50,8 @@ loop, no sandbox). Tool output is screened by the **guard** control before it re
   pooling is deferred ([ADR-0011](../../docs/decisions/0011-tool-mcp-gateway.md)).
 - **Managed swap-in** — AWS Bedrock AgentCore Gateway is the hosted single-MCP-endpoint alternative
   behind the same port ([ADR-0007](../../docs/decisions/0007-tools-and-external-auth.md)).
-- **In-cluster** — done. Standalone `charts/tool-gateway`, or the toggleable `toolGateway` component
-  in `charts/agent-os` (`--set toolGateway.enabled=true`, which auto-injects `TOOL_GATEWAY_URL` into
+- **In-cluster** — done. Standalone `deploy/helm/tool-gateway`, or the toggleable `toolGateway` component
+  in `deploy/helm/agent-os` (`--set toolGateway.enabled=true`, which auto-injects `TOOL_GATEWAY_URL` into
   the runtime — needs a token-preserving runtime authn, `AUTHN=oidc-sa`/`mesh`). Proven end-to-end by
   `deploy/local/tool-gateway-e2e.sh`: an agent composes *both* governed chokepoints (`think` →
   inference gateway, `do`-tools → tool gateway → MCP) holding no model creds and no tool creds, only

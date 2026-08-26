@@ -356,7 +356,7 @@ destination is blocked, DNS still resolves. *(2, the named-domain door)* a Squid
 the sandbox is forced through: allowlisted registries (`.npmjs.org`/`.pypi.org`) tunnel,
 non-listed (`github.com`) get a recorded `TCP_DENIED/403`, a direct bypass dies at the wall.
 The `do` containment control ([ADR-0020](decisions/0020-sandbox-execution-model.md)/[0022](decisions/0022-sandbox-backends-for-coding-agents.md));
-`make sandbox-test` (deployed by the `charts/sandbox` Helm chart).
+`make sandbox-test` (deployed by the `deploy/helm/sandbox` Helm chart).
 
 **Gate conformance — the live engine vs the retained reference (ADR-0027/0028):** a suite
 (`make gate-conformance`) asserts the load-bearing contract — R1 (no/bad credential → 401) + R2

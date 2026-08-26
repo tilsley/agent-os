@@ -83,14 +83,14 @@ cmd_install() {
   k get ns "$NS" >/dev/null 2>&1 || k create namespace "$NS" >/dev/null
   ensure_gp3
   echo "▶ helm upgrade --install $REL ($profile profile)"
-  helm --kube-context "$CTX" upgrade --install "$REL" charts/agent-os -n "$NS" -f "$values" >/dev/null || die "helm"
+  helm --kube-context "$CTX" upgrade --install "$REL" deploy/helm/agent-os -n "$NS" -f "$values" >/dev/null || die "helm"
 
   if [ "$profile" = "cheap" ]; then
     echo "▶ TenantInferenceProfile claim + reader RBAC (status.roleArn → keyless Bedrock)"
     k apply -f deploy/eks/tenant-cr.yaml >/dev/null
   else
     echo "▶ chart CRDs + the caller SA + namespace allowance + the tenant's claim (ADR-0021)"
-    k apply -f charts/agent-os/crds/ >/dev/null
+    k apply -f deploy/helm/agent-os/crds/ >/dev/null
     k wait --for condition=established crd/inferenceclaims.agent-os.io crd/agents.agent-os.io --timeout=30s >/dev/null 2>&1 || true
     k -n "$NS" create serviceaccount caller --dry-run=client -o yaml | k apply -f - >/dev/null
     k apply -f - >/dev/null <<YAML

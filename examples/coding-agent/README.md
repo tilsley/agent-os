@@ -24,7 +24,7 @@ gateway; the model call leaves via the gateway; untrusted code runs in the sandb
 
 The same agent, **as a pod in a locked-down namespace** — the platform's security story proven end
 to end. `deploy/local/sandbox-coding-agent.sh` (= `make coding-agent-pod`) deploys the agent into a
-namespace walled by [`charts/sandbox`](../../charts/sandbox) (default-deny egress) with **one door
+namespace walled by [`deploy/helm/sandbox`](../../deploy/helm/sandbox) (default-deny egress) with **one door
 open**: a cross-namespace route to the in-cluster gateway. The pod plays Model A's dual role — the
 trusted loop *and* the untrusted code — so a single task proves both halves:
 

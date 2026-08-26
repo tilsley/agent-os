@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Bun gateway as a pod (ADR-0028) — the in-cluster identity proof that retires the
-# LiteLLM chart from the deploy path. Replicates charts/litellm-gateway's validated
+# LiteLLM chart from the deploy path. Replicates deploy/helm/litellm-gateway's validated
 # scenario on the replacement: a REAL projected ServiceAccount token (minted with
 # kubectl create token --audience=agent-os-gateway) → TokenReview-verified by the
 # cluster API → claim → worst-case reserve → 402. Every case rejects pre-flight ⇒
@@ -18,7 +18,7 @@ trap cleanup EXIT
 echo "▶ build the gateway image (k3s docker runtime sees it directly — no import)"
 docker build -q -t inference-gateway:dev -f services/inference-gateway/Dockerfile . > /dev/null || exit 1
 
-echo "▶ deploy charts/inference-gateway (no-AWS test values: static claim for default/default, tiny cap)"
+echo "▶ deploy deploy/helm/inference-gateway (no-AWS test values: static claim for default/default, tiny cap)"
 VALUES=$(mktemp)
 cat > "$VALUES" <<'EOF'
 awsCredsSecret: ""
@@ -32,7 +32,7 @@ env:
   SPEND_STORE: memory
   GATE_BUDGET_USD: "0.0001"
 EOF
-helm upgrade --install inference-gateway charts/inference-gateway -n "$NS" --create-namespace -f "$VALUES" > /dev/null
+helm upgrade --install inference-gateway deploy/helm/inference-gateway -n "$NS" --create-namespace -f "$VALUES" > /dev/null
 rm -f "$VALUES"
 kubectl -n "$NS" rollout status deploy/inference-gateway --timeout=120s || { kubectl -n "$NS" logs deploy/inference-gateway | tail -20; exit 1; }
 

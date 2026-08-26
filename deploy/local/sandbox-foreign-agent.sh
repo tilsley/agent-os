@@ -25,7 +25,7 @@ echo "▶ 2/5  gateway up in $GW_NS with a \$5 claim for the sandboxed-agent SA 
 # CLAIM_SOURCE=static is required: the chart defaults to dynamo, which would ignore CLAIMS_STATIC.
 CLAIMS_FILE="$(mktemp -t mb-gw-values.XXXX.yaml)"
 printf 'env:\n  CLAIM_SOURCE: static\n  CLAIMS_STATIC: '\''{"%s":{"model":"claude-haiku","monthlyBudgetUsd":5}}'\''\n' "$TENANT" > "$CLAIMS_FILE"
-helm upgrade --install inference-gateway charts/inference-gateway -n "$GW_NS" --create-namespace \
+helm upgrade --install inference-gateway deploy/helm/inference-gateway -n "$GW_NS" --create-namespace \
   -f "$CLAIMS_FILE" >/dev/null
 rm -f "$CLAIMS_FILE"
 # the step-1 secret refresh doesn't restart the pod, and an unchanged helm spec won't roll it —
@@ -38,7 +38,7 @@ docker build -q -t sandboxed-agent:dev -f examples/sandboxed-agent/Dockerfile . 
   || { echo "❌ image build failed — aborting (a stale image would give a misleading verdict)"; exit 1; }
 
 echo "▶ 4/5  lock down $SB_NS (the wall) + open ONLY the governed gateway door"
-helm upgrade --install sandbox charts/sandbox -n "$SB_NS" --create-namespace \
+helm upgrade --install sandbox deploy/helm/sandbox -n "$SB_NS" --create-namespace \
   --set demo.enabled=false --set gateway.enabled=true --set gateway.namespace="$GW_NS" >/dev/null
 kubectl -n "$SB_NS" delete pod sandboxed-agent --ignore-not-found >/dev/null 2>&1
 kubectl apply -n "$SB_NS" -f examples/sandboxed-agent/k8s-pod.yaml >/dev/null

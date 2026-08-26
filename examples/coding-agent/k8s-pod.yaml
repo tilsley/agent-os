@@ -1,5 +1,5 @@
 # The coding agent AS A POD, BEHIND THE EGRESS WALL — Model A end to end (ADR-0020/0022).
-# Deployed into a namespace locked down by charts/sandbox (default-deny egress). This single
+# Deployed into a namespace locked down by deploy/helm/sandbox (default-deny egress). This single
 # pod plays Model A's dual role: the trusted agent loop AND the untrusted code it runs. It is
 # labelled app=sandbox, so the wall's doors apply to it:
 #   • think  → the in-cluster gateway (cross-namespace gateway door)  ✅ governed

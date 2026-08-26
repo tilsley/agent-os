@@ -29,7 +29,7 @@ env:
   SPEND_STORE: memory
   GATE_BUDGET_USD: "0.0001"
 EOF
-helm upgrade --install inference-gateway charts/inference-gateway -n "$NS" --create-namespace -f "$VALUES" > /dev/null
+helm upgrade --install inference-gateway deploy/helm/inference-gateway -n "$NS" --create-namespace -f "$VALUES" > /dev/null
 rm -f "$VALUES"
 kubectl -n "$NS" rollout status deploy/inference-gateway --timeout=180s || { kubectl -n "$NS" logs deploy/inference-gateway -c gateway 2>/dev/null | tail -20; exit 1; }
 

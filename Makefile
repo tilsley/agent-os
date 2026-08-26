@@ -75,8 +75,8 @@ k8s-creds: ## create the aws-creds secret in agent-os from this profile (local o
 	  [ -n "$$AWS_SESSION_TOKEN" ] && args="$$args --from-literal=AWS_SESSION_TOKEN=$$AWS_SESSION_TOKEN"; \
 	  kubectl -n agent-os create secret generic aws-creds $$args --dry-run=client -o yaml | kubectl apply -f -
 
-k8s-deploy: ## deploy the platform apps via Helm (charts/agent-os) into agent-os
-	helm upgrade --install agent-os charts/agent-os -n agent-os --create-namespace
+k8s-deploy: ## deploy the platform apps via Helm (deploy/helm/agent-os) into agent-os
+	helm upgrade --install agent-os deploy/helm/agent-os -n agent-os --create-namespace
 	kubectl -n agent-os rollout status deploy/agent-runtime
 
 k8s-logs: ## tail the runtime logs
@@ -88,8 +88,8 @@ k8s-forward: ## port-forward the runtime to localhost:3000
 gw-image: ## build the Bun inference-gateway image for k3s (ADR-0028)
 	docker build -t inference-gateway:dev -f services/inference-gateway/Dockerfile .
 
-gw-deploy: ## deploy the Bun gateway via Helm (charts/inference-gateway) into agentos-gw
-	helm upgrade --install inference-gateway charts/inference-gateway -n agentos-gw --create-namespace
+gw-deploy: ## deploy the Bun gateway via Helm (deploy/helm/inference-gateway) into agentos-gw
+	helm upgrade --install inference-gateway deploy/helm/inference-gateway -n agentos-gw --create-namespace
 	kubectl -n agentos-gw rollout status deploy/inference-gateway
 
 gw-pod-test: ## prove the gateway pod end to end: real SA token → TokenReview → claim → 402 (no AWS, $0)
@@ -98,7 +98,7 @@ gw-pod-test: ## prove the gateway pod end to end: real SA token → TokenReview 
 gw-mesh-test: ## prove full-mode mesh-trust on the Bun gateway: token-less caller, Linkerd-stamped identity → claim → 402
 	bash deploy/local/gateway-mesh-test.sh
 
-sandbox-test: ## deploy charts/sandbox + prove egress lockdown (wall + allowlist), then tear down
+sandbox-test: ## deploy deploy/helm/sandbox + prove egress lockdown (wall + allowlist), then tear down
 	bash deploy/local/sandbox-test.sh
 
 gate-conformance: ## assert the gate contract (R1+R2) holds identically on both gateways (ADR-0027)

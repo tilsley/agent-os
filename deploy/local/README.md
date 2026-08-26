@@ -5,12 +5,12 @@
 > The rule now: a persistent dev deploy lives in **`agentos`**; every *scenario*
 > (run via [`run.sh`](run.sh)) uses its **own** namespace and prints a teardown line on exit (older
 > harnesses `trap`-clean with `KEEP=1` to inspect). Our resources are **Helm charts**
-> ([`charts/`](../../charts)) — `charts/sandbox`
-> for the egress harness, `charts/agent-os` for the apps — not ad-hoc `kubectl apply`.
+> ([`deploy/helm/`](../../charts)) — `deploy/helm/sandbox`
+> for the egress harness, `deploy/helm/agent-os` for the apps — not ad-hoc `kubectl apply`.
 > (Crossplane and LiteLLM are deployed separately, their own thing.)
 
 Runs `agent-runtime` in-cluster on **colima + k3s** (lean, 16 GB-friendly), deployed by the
-**[`charts/agent-os`](../../charts/agent-os)** Helm chart (same chart on EKS — only `values`
+**[`deploy/helm/agent-os`](../../deploy/helm/agent-os)** Helm chart (same chart on EKS — only `values`
 differ: image pull policy, adapter env, IRSA-vs-secret creds). The chart bundles the
 **isolation set** (namespace ResourceQuota/LimitRange/NetworkPolicy — the k8s side of `gate`),
 the **workload** (agent-runtime SA/ConfigMap/Deployment+OPA sidecar/Service/HPA), the
@@ -88,7 +88,7 @@ kubectl -n agent-os create secret generic gate-tokens \
 
 ## 4. Deploy + test
 ```bash
-make k8s-deploy   # helm upgrade --install agent-os charts/agent-os -n agent-os --create-namespace
+make k8s-deploy   # helm upgrade --install agent-os deploy/helm/agent-os -n agent-os --create-namespace
 kubectl -n agent-os port-forward svc/agent-runtime 3000:80 &
 
 curl localhost:3000/healthz

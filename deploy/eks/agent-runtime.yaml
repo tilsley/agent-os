@@ -1,6 +1,6 @@
 # ⚠ SUPERSEDED (kept for reference) — this hand-written manifest was the May field trip. The
 # CURRENT platform deploys via the chart: `bash deploy/eks/run.sh install cheap` renders this same
-# keyless runtime (+ memory, quota, networkPolicy) from charts/agent-os with deploy/eks/eks-values.yaml,
+# keyless runtime (+ memory, quota, networkPolicy) from deploy/helm/agent-os with deploy/eks/eks-values.yaml,
 # and `install full` brings the gateways + claims control plane the field trip predated. See README.md.
 #
 # agent-runtime on EKS — KEYLESS, running the ticket-bot agent with the full gate.

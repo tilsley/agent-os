@@ -1,4 +1,4 @@
-# AWS-light overrides to verify the tool-gateway FOLDED INTO charts/agent-os (ADR-0011 dir. b /
+# AWS-light overrides to verify the tool-gateway FOLDED INTO deploy/helm/agent-os (ADR-0011 dir. b /
 # ADR-0029): one `helm install` brings up the runtime AND the tool gateway, and the runtime resolves
 # + invokes an external MCP tool THROUGH the gateway — forwarding only the caller's identity, holding
 # no tool creds. Real Bedrock (Haiku, DIRECT via aws-creds); oidc-sa authn end-to-end; everything

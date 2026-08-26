@@ -77,10 +77,10 @@ agent-os/
 │   ├── doc-gardener/            # agent that fixes doc drift
 │   └── dep-migrator/            # early dependency-bump demo agent
 ├── examples/                    # 11 runnable POCs — a capability ladder (spine → coding → a2a → mcp → …)
-├── charts/                      # Helm: agent-os, inference-gateway, sandbox, tool-gateway
 └── deploy/                      # everything about HOW it deploys — one tree
     ├── aws/                     #   AWS CDK (TypeScript, via bun)
     ├── gcp/                     #   GCP infra (Pulumi) — the managed-GCP profile
+    ├── helm/                    #   Helm charts — agent-os, inference-gateway, sandbox, tool-gateway
     ├── crossplane/              #   Crossplane XRDs — day-2 provisioning plane (ADR-0005; narrowed by ADR-0021)
     ├── local/  eks/  aurora/    #   e2e scripts · EKS capstone · Aurora bootstrap
     └── e2b-coder/  gcp-agent-engine/
@@ -99,10 +99,10 @@ make coding-agent     # coding agent: think governed, code in the sandbox
 ```
 
 Deploys are profile-scoped and always print the target account first
-(`make whoami`). CDK stacks live in `infra/`; use `AWS_PROFILE=nathan-tilsley-developer`
+(`make whoami`). CDK stacks live in `deploy/aws/`; use `AWS_PROFILE=nathan-tilsley-developer`
 (account `233965347831`), not the default profile.
 
 ## Tooling
 
 This repo uses **bun** (not npm/node) for JS/TS, **uv** for Python, and CDK runs via
-`bunx cdk`. GCP infra is Pulumi; k8s apps deploy via the Helm charts in `charts/`.
+`bunx cdk`. GCP infra is Pulumi; k8s apps deploy via the Helm charts in `deploy/helm/`.

@@ -1,4 +1,4 @@
-# AWS-light: BOTH gateways folded into charts/agent-os — the agent pod holds NEITHER model nor tool
+# AWS-light: BOTH gateways folded into deploy/helm/agent-os — the agent pod holds NEITHER model nor tool
 # creds (the symmetry of ADR-0019 + ADR-0029). think → inference-gateway (the sole holder of Bedrock
 # creds); do-tools → tool-gateway (holds the MCP connection). The runtime forwards only its identity
 # (oidc-sa) and holds no aws-creds at all. Used by deploy/local/dual-gateway-e2e.sh.

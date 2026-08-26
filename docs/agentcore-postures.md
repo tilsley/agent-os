@@ -201,7 +201,7 @@ default adapter ([ADR-0006](decisions/0006-agentcore-execution-environment.md)).
   counterpart in the codebase (would be a new port).
 
 **Lean out:** E2B (adapter built) or gVisor/Kata pods on EKS behind the proven
-NetworkPolicy egress wall + Squid door (`charts/sandbox`). Re-owns the isolation tier
+NetworkPolicy egress wall + Squid door (`deploy/helm/sandbox`). Re-owns the isolation tier
 [ADR-0006](decisions/0006-agentcore-execution-environment.md) offloaded; wins on cost at
 sustained utilization and on custom toolchains/images; egress governance is ours
 (auditable Squid logs) rather than a network-mode enum.

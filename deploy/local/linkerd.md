@@ -27,7 +27,7 @@ defaulting to a dead EKS context).
 ```bash
 kubectl annotate ns agentos-gw linkerd.io/inject=enabled --overwrite        # mesh the namespace
 # gateway in mesh mode: AUTHN=mesh-id, MESH_IDENTITY_HEADER=l5d-client-id (no token verification)
-helm upgrade inference-gateway charts/inference-gateway -n agentos-gw \
+helm upgrade inference-gateway deploy/helm/inference-gateway -n agentos-gw \
   --set env.AUTHN=mesh-id --set env.MESH_IDENTITY_HEADER=l5d-client-id --set env.CLAIM_SOURCE=static \
   --set-string 'env.CLAIMS_STATIC={"system:serviceaccount:agentos-gw:spine-agent":{"model":"claude-haiku","monthlyBudgetUsd":5}}'
 kubectl -n agentos-gw rollout restart deploy/inference-gateway     # re-injected, now 2/2

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Model A, end to end, BEHIND THE EGRESS WALL (ADR-0020/0022) — the convergence of the three
-# islands: the coding agent (examples/coding-agent), the egress lockdown (charts/sandbox), and
-# the in-cluster gateway (charts/inference-gateway — the Bun engine, ADR-0028). The agent runs as a pod in a locked-down
+# islands: the coding agent (examples/coding-agent), the egress lockdown (deploy/helm/sandbox), and
+# the in-cluster gateway (deploy/helm/inference-gateway — the Bun engine, ADR-0028). The agent runs as a pod in a locked-down
 # namespace; one task proves BOTH halves:
 #   • think  → reaches the gateway through the wall's governed door  ✅
 #   • do     → its own python's arbitrary egress is denied by the wall ❌ (NET_BLOCKED)
@@ -27,7 +27,7 @@ echo "▶ 2/5  gateway up in $GW_NS with a \$5 claim for the coding-agent SA (CL
 # CLAIM_SOURCE=static is required: the chart defaults to dynamo, which would ignore CLAIMS_STATIC.
 CLAIMS_FILE="$(mktemp -t ca-gw-values.XXXX.yaml)"
 printf 'env:\n  CLAIM_SOURCE: static\n  CLAIMS_STATIC: '\''{"%s":{"model":"claude-haiku","monthlyBudgetUsd":5}}'\''\n' "$TENANT" > "$CLAIMS_FILE"
-helm upgrade --install inference-gateway charts/inference-gateway -n "$GW_NS" --create-namespace \
+helm upgrade --install inference-gateway deploy/helm/inference-gateway -n "$GW_NS" --create-namespace \
   -f "$CLAIMS_FILE" >/dev/null
 rm -f "$CLAIMS_FILE"
 # the step-1 secret refresh doesn't restart the pod, and an unchanged helm spec won't roll it —
@@ -40,7 +40,7 @@ docker build -q -t coding-agent:dev -f examples/coding-agent/Dockerfile . >/dev/
   || { echo "❌ image build failed — aborting (a stale image would give a misleading verdict)"; exit 1; }
 
 echo "▶ 4/5  lock down $SB_NS (the wall) + open ONLY the governed gateway door"
-helm upgrade --install sandbox charts/sandbox -n "$SB_NS" --create-namespace \
+helm upgrade --install sandbox deploy/helm/sandbox -n "$SB_NS" --create-namespace \
   --set demo.enabled=false --set gateway.enabled=true --set gateway.namespace="$GW_NS" >/dev/null
 kubectl -n "$SB_NS" delete pod coding-agent --ignore-not-found >/dev/null 2>&1
 kubectl apply -n "$SB_NS" -f examples/coding-agent/k8s-pod.yaml >/dev/null
