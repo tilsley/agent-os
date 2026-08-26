@@ -4,6 +4,11 @@
 > (requirements → layers → primitives → ports → L1/L2). This document is the
 > deeper AWS-mapping reference it links into.
 
+> ⚠️ **Status note (2026-08):** parts of this doc's "skeleton / not deployed"
+> framing predate ADRs 0028–0047. The platform is now live across four deployment
+> profiles — see the [README](../README.md) and [`docs/decisions/`](decisions/)
+> for current state.
+
 Refined from the original bootstrap blueprint, with the four locked decisions
 baked in and the blueprint's technical errors corrected.
 
@@ -25,7 +30,7 @@ a runtime that composes them, agents on top:
 flowchart TB
   subgraph L2["L2 · Agents (apps)"]
     DM["dep-migrator"]
-    EX["examples: tracer-bullet · credential-broker · mcp-gateway"]
+    EX["examples: spine-agent · coding-agent · a2a-runtimes · github-mcp"]
   end
 
   subgraph L1["L1 · Runtime — agent-runtime service"]
@@ -50,7 +55,7 @@ flowchart TB
   WORK --> THINK & DO & REM
   WORK -. applies .-> GATE & REC & GUARD
 
-  CP["control plane: Crossplane → Bedrock inference profiles · CDK/EKS (skeleton) · k3s (local)"]
+  CP["control plane: CDK (deployed) · EKS/k3s · four deployment profiles (ADR-0027/0042/0044)"]
   CP -. provisions .-> L0P
 ```
 
@@ -128,7 +133,8 @@ discovered + called a tool under per-tenant policy; **verified workload identity
 (OIDC TokenReview), the standalone inference-gateway, atomic multi-scope budget,
 and cross-pod A2A on-behalf-of were proven on real EKS + local k3s** (ADR-0019/0021).
 **Not yet production:** in-memory `RunStore`, static gate tokens + broker secrets,
-in-process fire-and-forget worker, no eval harness, EKS/CDK still skeleton.
+in-process fire-and-forget worker, no eval harness. (CDK/serverless substrate now
+deployed live — ADR-0031; this section predates that.)
 
 ## The primitives
 
@@ -278,10 +284,10 @@ packages/   # @agent-os/core — the platform: ports, the L1 loop, runs, gate,
 services/   # agent-runtime (REAL: async runtime + Dockerfile). inference-gateway,
             #   sandbox-manager, tool-gateway, iam-authorizer, telemetry-processor
             #   are README scaffolds — logic lives in core for now
-apps/       # dep-migrator — the first real agent
-examples/   # tracer-bullet · credential-broker · mcp-gateway (runnable, validated)
-infra/      # AWS CDK (TypeScript via bun) — day-0 bootstrap; SKELETON, not deployed
-deploy/     # local/ — k3s manifests (agent-runtime deployed live) + Crossplane
+apps/       # console (web SPA) · doc-gardener · dep-migrator
+examples/   # 11 runnable POCs — spine-agent · coding-agent · a2a-runtimes · github-mcp · …
+infra/      # AWS CDK (TypeScript via bun) — deployed (StateStack + BedrockStack live)
+deploy/     # local/ e2e scripts · aurora · e2b-coder · eks · gcp-agent-engine
 docs/       # this file, primitives.md, runtime.md, isolation.md, decisions/ (ADRs)
 ```
 

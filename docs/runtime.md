@@ -4,6 +4,10 @@ L0 is the [primitives](primitives.md); L2 is applications. **L1 is the agent** �
 the orchestration loop that composes the primitives. This doc defines the L1
 contract: what an agent is, how it's invoked, and what the loop does each step.
 
+> ⚠️ **Status note (2026-08):** items this doc marks "deferred" have since shipped —
+> the **State/Memory** primitive (ADR-0030) and **multi-agent / A2A** (ADR-0017/0018,
+> see `examples/a2a-runtimes`). See the [README](../README.md) and ADRs for current state.
+
 ## What an agent is
 
 The agent is **trusted code** (a `runc` pod in k8s) that runs a loop over the

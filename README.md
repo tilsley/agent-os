@@ -2,77 +2,105 @@
 
 A cloud-native, multi-tenant **agent operating system**. Agents need stateful,
 isolated, spiky execution — closer to "serverless that runs untrusted code" than
-to traditional microservices. `agent-os` is built on **three primitives** (capabilities the agent acts with) and
-**three cross-cutting controls** (canonical model:
-[`docs/primitives.md`](docs/primitives.md)). Both sit behind ports, so
-implementations are swappable:
+to traditional microservices. `agent-os` is built on **three primitives** (capabilities
+the agent acts with) and **three cross-cutting controls** (canonical model:
+[`docs/primitives.md`](docs/primitives.md)). Every one sits behind a port, so
+implementations are swappable adapters:
 
-| # | Primitive | Role | Backing tech |
+| # | Primitive / control | Role | Default adapter(s), behind a port |
 |---|-----------|------|--------------|
-| 1 | **Inference** (think) | act | Bedrock behind an internal gateway (application inference profiles) |
-| 2 | **Sandbox** (do) | act | AWS Bedrock AgentCore — Firecracker-per-session (ADR-0006) |
-| 3 | **State / Memory** (remember) | act — *deferred* | AgentCore Memory or a datastore (DynamoDB/Postgres/Redis/S3) |
-| 4 | **Identity & governance** (gate) | cross-cutting | EKS Pod Identity + STS + scoped "human × agent" tokens |
-| 5 | **Observability** (record) | cross-cutting | OpenTelemetry (ADOT) → OpenSearch + S3 |
-| 6 | **Safety / Guardrails** (guard) | cross-cutting | Amazon Bedrock Guardrails (content filters, PII, grounding, injection) |
+| 1 | **Inference** (think) | act | Owned Bun/TS gateway (ADR-0028) → Bedrock; Vertex/OpenAI wires as adapters |
+| 2 | **Sandbox** (do) | act | Adapter by profile — AgentCore Code Interpreter, E2B, or local (ADR-0020/0022) |
+| 3 | **State / Memory** (remember) | act | Files-first + vector/graph tiers behind a Memory port (ADR-0030); Postgres/Redis backing (ADR-0023) |
+| 4 | **Identity & governance** (gate) | cross-cutting | Cognito human + M2M identity, OPA/authz, budget ledger (ADR-0009/0015/0041) |
+| 5 | **Observability** (record) | cross-cutting | OTel spans → Grafana Cloud (cheap) or ADOT→OpenSearch (full) (ADR-0035) |
+| 6 | **Safety / Guardrails** (guard) | cross-cutting | Bedrock Guardrails behind a `ContentGuard` port (ADR-0008) |
 
-The agent runtime (L1) composes these; see [`docs/runtime.md`](docs/runtime.md).
+The agent runtime (L1) composes these; see [`docs/runtime.md`](docs/runtime.md) and
+[`docs/architecture.md`](docs/architecture.md). Decisions are recorded as ADRs —
+**47 and counting** ([`docs/decisions/`](docs/decisions/)), immutable once Accepted.
 
-## Decisions locked so far
+> **Naming:** the platform is being renamed **agent-os → creance**. The rename is
+> partial — live domains are `*.creance.nathantilsley.com` and SSM params are
+> `/creance/*`, but stack names, DynamoDB tables, and task families remain `agent-os-*`.
 
-- **Tenancy:** internal, multi-team. Soft isolation + governance (per-team
-  namespaces/quotas, audit). We trust operators but **not** the code agents run.
-- **Untrusted code:** yes. Sandboxes run agent-generated / third-party code, so
-  isolation stronger than `runc` is required. See [`docs/isolation.md`](docs/isolation.md).
-- **Build vs buy:** *sandbox* execution is **bought** (AWS Bedrock AgentCore); the
-  control plane is **built** on k8s (EKS in prod, k3s locally). See ADR-0006.
-- **Sandbox execution:** **AWS Bedrock AgentCore** — managed Firecracker-per-
-  session. The agent loop stays in k8s; only untrusted code runs in AgentCore.
-  Supersedes the gVisor-on-EKS plan. See [ADR-0006](docs/decisions/0006-agentcore-execution-environment.md).
-- **Portability:** ports & adapters; K8s is the portable substrate (k3s local ↔
-  EKS prod). See [ADR-0003](docs/decisions/0003-ports-and-adapters.md).
-- **Cost governance:** Bedrock application inference profiles for attribution +
-  gateway metering for real-time enforcement.
-  See [ADR-0004](docs/decisions/0004-cost-governance.md).
-- **Provisioning control plane:** **Crossplane** — self-service CRDs (e.g.
-  `InferenceProfile` with a cost cap), no code change per team/model.
-  See [ADR-0005](docs/decisions/0005-crossplane-control-plane.md).
-- **Safety:** content **guard** is a third cross-cutting control (behind a
-  `ContentGuard` port; default adapter Bedrock Guardrails, swappable) — screens
-  model I/O and untrusted tool output (injection defense).
-  See [ADR-0008](docs/decisions/0008-guard-content-safety-primitive.md).
-- **First milestone:** infra scaffolding + recorded reasoning. No running
-  services, no `cdk deploy` yet.
+## Status — live, not a skeleton
+
+The control plane and multiple execution lanes are **deployed and verified live**
+(AWS account `233965347831`, `eu-west-2`; GCP `europe-west2`). Highlights:
+
+- **Serverless substrate** — the run loop as a Fargate task-per-run behind an
+  API Gateway front door, DynamoDB state, scale-to-zero (ADR-0031, live).
+- **Inference gateway** — the owned Bun gateway on `inference.creance.nathantilsley.com`,
+  identity-bound with a real-time budget ledger (ADR-0019/0028/0039/0043, live).
+- **Web console** — a static SPA behind Cognito driving the front door (ADR-0032, live).
+- **Machine identity** — services authenticate via Cognito client-credentials;
+  `@agent-os/client` SDK; `svc-failure-analyst` the first subject (ADR-0041, live).
+- **Managed profiles** — the loop also runs on **AWS Bedrock AgentCore**
+  (`DISPATCH=agentcore`, ADR-0042) and **GCP Vertex Agent Runtime**
+  (`DISPATCH=agentengine`, ADR-0044), both verified live.
+- **Coding lanes** — a governed `coder` loop (ADR-0046) and the foreign-L1
+  `claude-code` hosted runner (ADR-0033/0036), both proven end-to-end.
+
+### Deployment profiles (ADR-0027, extended by 0042/0044)
+
+One contract (verified identity + real-time budget), selected by env bundle:
+
+| Profile | Compute | Store | Selected by |
+|---|---|---|---|
+| **cheap AWS-native** | Fargate task-per-run + Lambda/API GW front door | DynamoDB, scale-to-zero | default |
+| **full k8s** | EKS/k3s pods (Helm) | Redis + Postgres/Aurora, mesh + OPA | env bundle |
+| **managed AWS** | AgentCore Runtime | DynamoDB | `DISPATCH=agentcore` |
+| **managed GCP** | Vertex Agent Runtime | Firestore (shared ledger) | `DISPATCH=agentengine` |
 
 ## Repository layout
 
 ```text
 agent-os/
 ├── docs/
-│   ├── architecture.md          # refined architecture; the 4 primitives + decisions
-│   ├── isolation.md             # the sandbox-isolation analysis (the hard part)
-│   └── decisions/               # ADRs
-├── packages/core/               # @agent-os/core — runtime: ports, loop, adapters
-├── examples/tracer-bullet/      # runnable agent loop (think+do+guard+record) — LIVE
-├── infra/                       # AWS CDK skeleton (TypeScript, run via bun) — SHELLS ONLY
-│   ├── bin/agent-os.ts
-│   └── lib/*-stack.ts
-├── platform/                    # Crossplane control plane: self-service CRDs
-│   ├── apis/inference-profile/  # Bedrock inference + cost cap
-│   └── apis/sandbox/            # AgentCore Code Interpreter config
-└── services/                    # platform services — READMEs only, no code yet
-    ├── inference-gateway/
-    ├── sandbox-manager/
-    ├── tool-gateway/
-    ├── iam-authorizer/
-    └── telemetry-processor/
+│   ├── architecture.md · primitives.md · runtime.md · isolation.md · resource-model.md
+│   ├── agentcore-*.md · agent-engine-*.md   # managed-platform analysis
+│   └── decisions/                           # 47 ADRs (the source of truth)
+├── packages/
+│   ├── core/                    # @agent-os/core — ports, the L1 loop, ~55 adapters (wired in config.ts)
+│   └── client/                  # @agent-os/client — typed SDK + login flows (browser/machine/gcp)
+├── services/                    # deployables consuming core
+│   ├── agent-runtime/           #   L1 runtime as the HTTP front door (dispatches runs)
+│   ├── agent-controller/        #   k8s operator reconciling the Agent CRD
+│   ├── inference-gateway/       #   the owned Bun think-gateway + budget ledger
+│   ├── tool-gateway/            #   centralized tool/MCP execution
+│   ├── claims-controller/       #   reconciles InferenceClaims vs Allowance
+│   ├── claude-code-runner/      #   headless Claude Code as a Fargate executor
+│   └── iam-authorizer · sandbox-manager · telemetry-processor/   # responsibility specs (logic lives as core adapters)
+├── apps/
+│   ├── console/                 # the web console SPA (ADR-0032)
+│   ├── doc-gardener/            # agent that fixes doc drift
+│   └── dep-migrator/            # early dependency-bump demo agent
+├── examples/                    # 11 runnable POCs — a capability ladder (spine → coding → a2a → mcp → …)
+├── charts/                      # Helm: agent-os, inference-gateway, sandbox, tool-gateway
+├── infra/                       # AWS CDK (TypeScript, via bun)
+├── infra-gcp/                   # GCP infra (Pulumi) — pairs with the managed-GCP profile
+├── platform/apis/               # Crossplane XRDs (largely superseded by ADR-0021's controller-free model)
+└── deploy/                      # aurora · e2b-coder · eks · gcp-agent-engine · local (e2e scripts)
 ```
 
-## Status
+## Running it
 
-**Skeleton.** Docs carry the reasoning; `infra/` stacks are comment-only shells;
-`services/` are READMEs describing intended responsibility. Nothing deploys yet.
+`make help` lists everything. Common entry points:
+
+```bash
+make run              # agent-runtime locally, in-memory store
+make local            # list local end-to-end scenarios (colima + k3s)
+make local-full       # the whole-platform local e2e — one governed run
+make spine-agent      # smallest real e2e: one governed think through the gateway
+make coding-agent     # coding agent: think governed, code in the sandbox
+```
+
+Deploys are profile-scoped and always print the target account first
+(`make whoami`). CDK stacks live in `infra/`; use `AWS_PROFILE=nathan-tilsley-developer`
+(account `233965347831`), not the default profile.
 
 ## Tooling
 
-This repo uses **bun** (not npm/node) for JS/TS. CDK runs via `bunx cdk`.
+This repo uses **bun** (not npm/node) for JS/TS, **uv** for Python, and CDK runs via
+`bunx cdk`. GCP infra is Pulumi; k8s apps deploy via the Helm charts in `charts/`.

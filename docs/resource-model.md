@@ -6,6 +6,10 @@ resource(s)**, plus **how it scales** and **how it's secured** — the two north
 stars. Read alongside [primitives.md](primitives.md) (the conceptual model) and
 [architecture.md](architecture.md) (diagrams + ports/adapters).
 
+> ⚠️ **Status note (2026-08):** the 🟡/undeployed status markers below predate the
+> live deploys (ADRs 0031–0047). Treat the resource *inventory* as current but the
+> *deployment status* as historical — see the [README](../README.md) for what's live.
+
 **Status:** ✅ built & run · 🟡 partial · ⬜ designed.
 **Local vs EKS:** most of this runs on **local k3s + real AWS services** at ~$0
 idle; the [delta section](#local-k3s--real-aws-vs-eks--what-actually-changes) lists

@@ -69,8 +69,8 @@ CRED_BROKER=local \
 CRED_BROKER_CONFIG='{"teamA":{"github":{"scheme":"bearer","token":"...","baseUrl":"https://api.github.com","ttlSeconds":300}}}' \
   bun run start
 ```
-See [`examples/credential-broker`](../../examples/credential-broker) for a runnable
-demo that proves the secret never reaches the model.
+See [`examples/ticket-bot`](../../examples/ticket-bot) for a runnable demo (Slack→Jira
+with per-target service-account creds) that proves the secret never reaches the model.
 
 ### Tool/MCP gateway — [ADR-0011](../../docs/decisions/0011-tool-mcp-gateway.md)
 Tools aren't hardcoded — each run's toolset is assembled by a `ToolProvider` from
@@ -86,7 +86,7 @@ stdio, `Authorization` for HTTP). Hosted swap-in: AgentCore Gateway. See
 
 ## Run
 ```bash
-# fully local (no AWS): needs ollama + a tool-capable model (see tracer-bullet README)
+# fully local (no AWS): needs ollama + a tool-capable model (see examples/spine-agent README)
 INFERENCE_PROVIDER=ollama SANDBOX_PROVIDER=local PORT=3000 bun run start
 
 # or against AWS (Bedrock + AgentCore): just creds + model access
