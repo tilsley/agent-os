@@ -1,6 +1,6 @@
 # The inference gateway's contract (ADR-0043) — a PURE OpenAPI document, no
 # x-amazon-apigateway-* extensions: the AWS integration overlay is injected at
-# CDK synth (infra/lib/spec-rest-api.ts), so this same file describes the pod
+# CDK synth (deploy/aws/lib/spec-rest-api.ts), so this same file describes the pod
 # (full profile) and the API Gateway deployment (cheap profile), generates the
 # SDK's types (packages/client), and drives the contract test.
 #

@@ -1,7 +1,7 @@
 # A Bedrock application inference profile, declared as a Crossplane managed
 # resource (provider-aws-bedrock). Replaces the ad-hoc `aws bedrock create-...`
 # we did by hand: kubectl apply this, Crossplane reconciles it into AWS; delete
-# it, Crossplane deletes the profile. This is the platform/apis/inference-profile
+# it, Crossplane deletes the profile. This is the deploy/crossplane/inference-profile
 # XRD's underlying resource (ADR-0005), shown directly here.
 apiVersion: bedrock.aws.upbound.io/v1beta1
 kind: InferenceProfile

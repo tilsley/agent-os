@@ -15,7 +15,7 @@ Anthropic directly.
 - **Consume the provisioned profile:** read the team's `InferenceProfile`
   connection secret (which Bedrock **application inference profile** ARN to
   invoke) and its `maxDailyCostUSD`. The CRD is the declarative source; this is
-  the runtime consumer (see `platform/apis/inference-profile/`).
+  the runtime consumer (see `deploy/crossplane/inference-profile/`).
 - Token-consumption metadata per `agent_id` / `run_id` (feeds telemetry-processor).
 - **Native provider prompt caching** (not a bespoke semantic cache).
 - **Guard (content safety):** screen prompts and completions via the
@@ -25,5 +25,5 @@ Anthropic directly.
 
 ## Notes
 - Runs Tier 0 (`runc`) — trusted platform service.
-- AWS access via EKS Pod Identity → scoped Bedrock policy (see `infra/lib/bedrock-stack.ts`).
+- AWS access via EKS Pod Identity → scoped Bedrock policy (see `deploy/aws/lib/bedrock-stack.ts`).
 - **Language: TBD** (Python or Go).

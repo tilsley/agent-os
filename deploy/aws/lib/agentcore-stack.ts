@@ -44,7 +44,7 @@ export class AgentCoreStack extends cdk.Stack {
     // asset in ServerlessStack. The "one image" story survives as "one
     // Dockerfile"; the single-build story does not.
     const image = new ecrAssets.DockerImageAsset(this, "RuntimeImageArm64", {
-      directory: path.join(__dirname, "..", ".."),
+      directory: path.join(__dirname, "..", "..", ".."),
       file: "services/agent-runtime/Dockerfile",
       platform: ecrAssets.Platform.LINUX_ARM64,
     });
@@ -351,7 +351,7 @@ export class AgentCoreStack extends cdk.Stack {
     // Trust shape is Model B's (loop + code share the box): acceptable because
     // the box holds only this run's session and the runtime role.
     const javaImage = new ecrAssets.DockerImageAsset(this, "JavaRuntimeImageArm64", {
-      directory: path.join(__dirname, "..", ".."),
+      directory: path.join(__dirname, "..", "..", ".."),
       file: "services/agent-runtime/Dockerfile.java",
       platform: ecrAssets.Platform.LINUX_ARM64,
     });

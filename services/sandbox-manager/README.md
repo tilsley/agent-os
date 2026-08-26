@@ -22,7 +22,7 @@ sessions.
 - Execution state (filesystem + variables) persists **within** a session and is
   destroyed on session end — managing that lifecycle is ours.
 - Crossplane provisions the named CodeInterpreter **config** (the sandbox
-  template, see `platform/apis/sandbox/`); **sessions** against it are runtime.
+  template, see `deploy/crossplane/sandbox/`); **sessions** against it are runtime.
 - Durable cross-run memory is **out of scope** (separate/future primitive; could
   use AgentCore Memory or S3).
 

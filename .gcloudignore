@@ -4,8 +4,8 @@
 # from the image COPY); this file only governs what gets uploaded as the build context.
 .git
 **/node_modules
-infra/cdk.out
-infra-gcp/bin
+deploy/aws/cdk.out
+deploy/gcp/bin
 **/.venv
 **/__pycache__
 .claude

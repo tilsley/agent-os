@@ -42,7 +42,7 @@ export class GatewayStack extends cdk.Stack {
     // Same build-context shape as the runtime image (repo root; the Dockerfile
     // COPYs the workspace). One image, two entrypoints: server.ts (pod) / lambda.ts.
     const image = new ecrAssets.DockerImageAsset(this, "Image", {
-      directory: path.join(__dirname, "..", ".."),
+      directory: path.join(__dirname, "..", "..", ".."),
       file: "services/inference-gateway/Dockerfile",
       platform: ecrAssets.Platform.LINUX_AMD64,
     });
@@ -104,7 +104,7 @@ export class GatewayStack extends cdk.Stack {
     // the edge validates shape and owns TLS/DNS.
     if (props.edge) {
       const edge = new SpecRestApiEdge(this, "Edge", {
-        specPath: path.join(__dirname, "..", "..", "services", "inference-gateway", "openapi.yaml"),
+        specPath: path.join(__dirname, "..", "..", "..", "services", "inference-gateway", "openapi.yaml"),
         handler: fn,
         domainName: props.edge.domainName,
         hostedZone: props.edge.hostedZone,

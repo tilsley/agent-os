@@ -1,5 +1,5 @@
 # The platform front door's contract (ADR-0043) — a PURE OpenAPI document; the
-# AWS integration overlay is injected at CDK synth (infra/lib/spec-rest-api.ts).
+# AWS integration overlay is injected at CDK synth (deploy/aws/lib/spec-rest-api.ts).
 # Same file, three jobs: describes the API across both deployment profiles
 # (ADR-0027), gets request-shape validation at the edge, and is the reviewable
 # record of what the platform IS (ADR-0038: the API server was the point).

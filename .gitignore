@@ -3,8 +3,8 @@ node_modules/
 bun.lockb
 
 # CDK
-infra/cdk.out/
-infra/.cdk.staging/
+deploy/aws/cdk.out/
+deploy/aws/.cdk.staging/
 
 # console (ADR-0032): built bundle + per-dev runtime config (deployed one is CDK-written)
 apps/console/dist/

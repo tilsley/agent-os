@@ -20,19 +20,19 @@ whoami: ## print the AWS account this profile resolves to (run before deploying!
 
 # --- CDK (infra/) ---
 bootstrap: ## cdk bootstrap this account/region (one-time)
-	cd infra && bunx cdk bootstrap
+	cd deploy/aws && bunx cdk bootstrap
 
 synth: ## synth the implemented stacks
-	cd infra && bunx cdk synth AgentOsState AgentOsBedrock
+	cd deploy/aws && bunx cdk synth AgentOsState AgentOsBedrock
 
 diff: ## diff against what's deployed
-	cd infra && bunx cdk diff AgentOsState AgentOsBedrock
+	cd deploy/aws && bunx cdk diff AgentOsState AgentOsBedrock
 
 deploy: whoami ## deploy StateStack + BedrockStack (prints identity first)
-	cd infra && bunx cdk deploy AgentOsState AgentOsBedrock
+	cd deploy/aws && bunx cdk deploy AgentOsState AgentOsBedrock
 
 destroy: ## destroy StateStack + BedrockStack
-	cd infra && bunx cdk destroy AgentOsState AgentOsBedrock
+	cd deploy/aws && bunx cdk destroy AgentOsState AgentOsBedrock
 
 outputs: ## print deployed stack outputs (table, role, guardrail id)
 	@aws cloudformation describe-stacks --stack-name AgentOsState   --query 'Stacks[0].Outputs' --output table
@@ -40,10 +40,10 @@ outputs: ## print deployed stack outputs (table, role, guardrail id)
 
 # --- full-mode store (ADR-0027): Aurora Serverless v2, scale-to-zero — deploy per trip ---
 deploy-postgres: whoami ## deploy the full-mode Aurora store (opens 5432 to YOUR current IP)
-	cd infra && bunx cdk deploy AgentOsPostgres -c dbAllowedCidr=$$(curl -s https://checkip.amazonaws.com)/32 --require-approval never
+	cd deploy/aws && bunx cdk deploy AgentOsPostgres -c dbAllowedCidr=$$(curl -s https://checkip.amazonaws.com)/32 --require-approval never
 
 destroy-postgres: ## tear the Aurora store back down (~$$0 idle while paused anyway)
-	cd infra && bunx cdk destroy AgentOsPostgres --force
+	cd deploy/aws && bunx cdk destroy AgentOsPostgres --force
 
 aurora-bootstrap: ## create the rds_iam DB user (agentos_app) from tracked SQL — run once after deploy-postgres
 	cd services/inference-gateway/litellm && uv run python ../../../deploy/aurora/bootstrap.py

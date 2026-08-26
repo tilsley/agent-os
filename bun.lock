@@ -33,6 +33,22 @@
         "opencode-ai": "1.16.2",
       },
     },
+    "deploy/aws": {
+      "name": "@agent-os/infra",
+      "version": "0.0.0",
+      "bin": {
+        "agent-os": "bin/agent-os.ts",
+      },
+      "dependencies": {
+        "aws-cdk-lib": "2.258.0",
+        "constructs": "^10.3.0",
+      },
+      "devDependencies": {
+        "@types/node": "^20.0.0",
+        "aws-cdk": "2.1126.0",
+        "typescript": "^5.4.0",
+      },
+    },
     "examples/a2a-delegation": {
       "name": "@agent-os/a2a-delegation-demo",
       "dependencies": {
@@ -53,18 +69,6 @@
     },
     "examples/coding-agent-memory": {
       "name": "@agent-os/coding-agent-memory-demo",
-      "dependencies": {
-        "@agent-os/core": "workspace:*",
-      },
-    },
-    "examples/credential-broker": {
-      "name": "@agent-os/credential-broker-demo",
-      "dependencies": {
-        "@agent-os/core": "workspace:*",
-      },
-    },
-    "examples/gateway-runtimes": {
-      "name": "@agent-os/gateway-runtimes-demo",
       "dependencies": {
         "@agent-os/core": "workspace:*",
       },
@@ -110,28 +114,6 @@
       "name": "@agent-os/tool-gateway-agent-demo",
       "dependencies": {
         "@agent-os/core": "workspace:*",
-      },
-    },
-    "examples/tracer-bullet": {
-      "name": "@agent-os/tracer-bullet",
-      "dependencies": {
-        "@agent-os/core": "workspace:*",
-      },
-    },
-    "infra": {
-      "name": "@agent-os/infra",
-      "version": "0.0.0",
-      "bin": {
-        "agent-os": "bin/agent-os.ts",
-      },
-      "dependencies": {
-        "aws-cdk-lib": "2.258.0",
-        "constructs": "^10.3.0",
-      },
-      "devDependencies": {
-        "@types/node": "^20.0.0",
-        "aws-cdk": "2.1126.0",
-        "typescript": "^5.4.0",
       },
     },
     "packages/client": {
@@ -229,19 +211,15 @@
 
     "@agent-os/core": ["@agent-os/core@workspace:packages/core"],
 
-    "@agent-os/credential-broker-demo": ["@agent-os/credential-broker-demo@workspace:examples/credential-broker"],
-
     "@agent-os/dep-migrator": ["@agent-os/dep-migrator@workspace:apps/dep-migrator"],
 
     "@agent-os/doc-gardener": ["@agent-os/doc-gardener@workspace:apps/doc-gardener"],
-
-    "@agent-os/gateway-runtimes-demo": ["@agent-os/gateway-runtimes-demo@workspace:examples/gateway-runtimes"],
 
     "@agent-os/github-mcp-demo": ["@agent-os/github-mcp-demo@workspace:examples/github-mcp"],
 
     "@agent-os/inference-gateway": ["@agent-os/inference-gateway@workspace:services/inference-gateway"],
 
-    "@agent-os/infra": ["@agent-os/infra@workspace:infra"],
+    "@agent-os/infra": ["@agent-os/infra@workspace:deploy/aws"],
 
     "@agent-os/mcp-gateway-demo": ["@agent-os/mcp-gateway-demo@workspace:examples/mcp-gateway"],
 
@@ -256,8 +234,6 @@
     "@agent-os/tool-gateway": ["@agent-os/tool-gateway@workspace:services/tool-gateway"],
 
     "@agent-os/tool-gateway-agent-demo": ["@agent-os/tool-gateway-agent-demo@workspace:examples/tool-gateway-agent"],
-
-    "@agent-os/tracer-bullet": ["@agent-os/tracer-bullet@workspace:examples/tracer-bullet"],
 
     "@aws-cdk/asset-awscli-v1": ["@aws-cdk/asset-awscli-v1@2.2.282", "", {}, "sha512-7hKMi5tTxDcKGIMIOq14PnY0GBcugW33Uh/2YHDZiEwSxLeFOCYBwhR+BFXONb/EJeVI3RETFgailNZbkcKF6g=="],
 

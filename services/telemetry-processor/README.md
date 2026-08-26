@@ -12,6 +12,6 @@ Aggregates tracing and token-cost data from agent runs.
 - Enable step-by-step replay of non-deterministic agent loops.
 
 ## Notes
-- See `infra/lib/data-log-stack.ts`.
+- See `deploy/aws/lib/data-log-stack.ts`.
 - Open threads: span schema, retention, PII handling for raw payloads.
 - **Language: TBD** (Python or Go).

@@ -128,7 +128,7 @@ function handler(event) {
       distribution, // invalidate on deploy
       distributionPaths: ["/*"],
       sources: [
-        s3deploy.Source.asset(path.join(__dirname, "..", "..", "apps", "console", "dist")),
+        s3deploy.Source.asset(path.join(__dirname, "..", "..", "..", "apps", "console", "dist")),
         // LAST wins: the deployed config overrides any dev config.json in dist/
         s3deploy.Source.jsonData("config.json", {
           apiUrl: props.apiUrl,

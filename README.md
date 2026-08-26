@@ -78,10 +78,12 @@ agent-os/
 │   └── dep-migrator/            # early dependency-bump demo agent
 ├── examples/                    # 11 runnable POCs — a capability ladder (spine → coding → a2a → mcp → …)
 ├── charts/                      # Helm: agent-os, inference-gateway, sandbox, tool-gateway
-├── infra/                       # AWS CDK (TypeScript, via bun)
-├── infra-gcp/                   # GCP infra (Pulumi) — pairs with the managed-GCP profile
-├── platform/apis/               # Crossplane XRDs — the day-2 provisioning plane (ADR-0005; role narrowed by ADR-0021)
-└── deploy/                      # aurora · e2b-coder · eks · gcp-agent-engine · local (e2e scripts)
+└── deploy/                      # everything about HOW it deploys — one tree
+    ├── aws/                     #   AWS CDK (TypeScript, via bun)
+    ├── gcp/                     #   GCP infra (Pulumi) — the managed-GCP profile
+    ├── crossplane/              #   Crossplane XRDs — day-2 provisioning plane (ADR-0005; narrowed by ADR-0021)
+    ├── local/  eks/  aurora/    #   e2e scripts · EKS capstone · Aurora bootstrap
+    └── e2b-coder/  gcp-agent-engine/
 ```
 
 ## Running it

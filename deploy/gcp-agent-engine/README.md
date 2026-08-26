@@ -20,7 +20,7 @@ Fargate/EKS/AgentCore — same contract, same invariant shell, selected by env b
 
 - Project `decent-decker-270921` (creance), billing on, region `europe-west2` (mirrors AWS eu-west-2).
 - APIs: aiplatform, artifactregistry, cloudbuild, secretmanager, run, iam.
-- `cd infra-gcp && PULUMI_CONFIG_PASSPHRASE="" pulumi up` → Artifact Registry repo + `agent-runtime` SA.
+- `cd deploy/gcp && PULUMI_CONFIG_PASSPHRASE="" pulumi up` → Artifact Registry repo + `agent-runtime` SA.
 
 ## Deploy
 
@@ -65,7 +65,7 @@ authorizer, and envelope are proven end-to-end.
 - **code-13 (INTERNAL) at deploy** = the **Reasoning Engine service agent**
   (`service-<PN>@gcp-sa-aiplatform-re…`) had **no Artifact Registry read** — its role carries zero
   `artifactregistry` perms, so the image pull failed *before* the container ran (hence no container
-  logs). Fixed in Pulumi: repo-scoped `artifactregistry.reader` for that agent (`infra-gcp/index.ts`).
+  logs). Fixed in Pulumi: repo-scoped `artifactregistry.reader` for that agent (`deploy/gcp/index.ts`).
 - **Runtime request contract** — Agent Runtime POSTs the `:query` body to **`POST /api/reasoning_engine`**
   as `{"input": {...}}`, on port **`AIP_HTTP_PORT`=8080** (confirmed injected).
 - **Runtime response contract** — the `:query` REST response schema is `{"output": <value>}` and the

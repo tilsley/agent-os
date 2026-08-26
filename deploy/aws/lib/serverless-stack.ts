@@ -85,7 +85,7 @@ export class ServerlessStack extends cdk.Stack {
     // strips node_modules/.git/venvs. x86_64 to match the Intel build host (native, no
     // QEMU); switch to LINUX_ARM64 + arm64 task/Lambda when building on Graviton.
     const image = new ecrAssets.DockerImageAsset(this, "Image", {
-      directory: path.join(__dirname, "..", ".."),
+      directory: path.join(__dirname, "..", "..", ".."),
       file: "services/agent-runtime/Dockerfile",
       platform: ecrAssets.Platform.LINUX_AMD64,
     });
@@ -217,7 +217,7 @@ export class ServerlessStack extends cdk.Stack {
     // role (runs+agents tables only — no Bedrock, no AgentCore: the subscription
     // token is the model credential).
     const ccImage = new ecrAssets.DockerImageAsset(this, "ClaudeCodeImage", {
-      directory: path.join(__dirname, "..", ".."),
+      directory: path.join(__dirname, "..", "..", ".."),
       file: "services/claude-code-runner/Dockerfile",
       platform: ecrAssets.Platform.LINUX_AMD64,
     });
@@ -442,7 +442,7 @@ export class ServerlessStack extends cdk.Stack {
     // console preflights identically on every substrate.
     if (props?.edge) {
       const edge = new SpecRestApiEdge(this, "Edge", {
-        specPath: path.join(__dirname, "..", "..", "services", "agent-runtime", "openapi.yaml"),
+        specPath: path.join(__dirname, "..", "..", "..", "services", "agent-runtime", "openapi.yaml"),
         handler: frontDoor,
         domainName: props.edge.domainName,
         hostedZone: props.edge.hostedZone,

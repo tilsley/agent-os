@@ -1,6 +1,6 @@
 # Bun configuration for the agent-os monorepo.
 # This repo standardizes on bun (not npm/node) for JS/TS tooling.
-# Workspaces are declared in package.json ("workspaces": ["infra"]).
+# Workspaces are declared in package.json ("workspaces": ["deploy/aws"]).
 
 [install]
 # Use exact versions in lockfile for reproducible infra builds.
