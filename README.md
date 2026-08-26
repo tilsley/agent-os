@@ -80,7 +80,7 @@ agent-os/
 ├── charts/                      # Helm: agent-os, inference-gateway, sandbox, tool-gateway
 ├── infra/                       # AWS CDK (TypeScript, via bun)
 ├── infra-gcp/                   # GCP infra (Pulumi) — pairs with the managed-GCP profile
-├── platform/apis/               # Crossplane XRDs (largely superseded by ADR-0021's controller-free model)
+├── platform/apis/               # Crossplane XRDs — the day-2 provisioning plane (ADR-0005; role narrowed by ADR-0021)
 └── deploy/                      # aurora · e2b-coder · eks · gcp-agent-engine · local (e2e scripts)
 ```
 

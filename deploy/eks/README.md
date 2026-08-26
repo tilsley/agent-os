@@ -70,4 +70,5 @@ Default profile is `cheap`. Override the AWS profile with `AWS_PROFILE=…` (def
 ## Retired
 
 The CDK `EksClusterStack` / `CoreVpcStack` stubs are not the path — eksctl owns the cluster
-(config-as-code, tear-down-friendly, native Pod Identity). They can be deleted from `infra/`.
+(config-as-code, tear-down-friendly, native Pod Identity). Those stubs have since been
+removed from `infra/`; eksctl (`cluster.yaml`) is the sole cluster path.
