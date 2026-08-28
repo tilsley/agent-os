@@ -1,0 +1,89 @@
+name: CI
+
+# Offline verification gate — no cloud credentials, no deploys, no spend.
+# Mirrors the manual smoke pass: install → test → build → cdk synth → helm lint.
+# Everything here runs on a clean checkout with only public toolchains.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Synth is env-agnostic (no context lookups; cdk.context.json is committed).
+      # Region matches the rest of agent-os; account stays unset → env-agnostic templates.
+      CDK_DEFAULT_REGION: eu-west-2
+      AWS_REGION: eu-west-2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.4 # pin to the repo's bun (see oven/bun image pin note)
+
+      - name: Install helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.3
+
+      - name: Install dependencies (frozen lockfile)
+        run: bun install --frozen-lockfile
+
+      # Unit + component tests. cdk.out does not exist on a clean checkout, so
+      # bun test never scans the CDK asset copies. Run this BEFORE any synth.
+      - name: Unit + component tests
+        run: bun test
+
+      # Import-resolution + transpile check for entrypoints (bun build, not tsc —
+      # the repo's tsc resolution is unreliable; bun build is the real gate).
+      - name: Build entrypoints (imports resolve + transpile)
+        run: |
+          set -e
+          for entry in \
+            services/agent-runtime/server.ts \
+            services/inference-gateway/server.ts \
+            services/tool-gateway/*.ts \
+            packages/client/src/index.ts \
+            apps/doc-gardener/index.ts \
+            examples/spine-agent/index.ts; do
+            for f in $entry; do
+              [ -f "$f" ] || continue
+              echo "build: $f"
+              bun build "$f" --target=bun --outfile=/dev/null
+            done
+          done
+
+      - name: Deploy scripts parse clean
+        run: |
+          set -e
+          for s in deploy/local/*.sh deploy/eks/*.sh; do
+            [ -f "$s" ] || continue
+            bash -n "$s"
+          done
+          echo "all deploy scripts parse"
+
+      # CDK synth — compiles every stack's TS and validates Docker/asset context
+      # paths. No deploy, no creds, no docker image build (synth only).
+      - name: CDK synth (all stacks, no deploy)
+        working-directory: deploy/aws
+        run: bunx cdk synth >/dev/null
+
+      - name: Helm lint + template
+        run: |
+          set -e
+          for c in deploy/helm/*/; do
+            [ -f "$c/Chart.yaml" ] || continue
+            helm lint "$c"
+          done
+          helm template agent-os deploy/helm/agent-os >/dev/null
+          echo "helm charts lint + template clean"
