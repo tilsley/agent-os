@@ -24,7 +24,7 @@ function mockExchange() {
     },
   });
   const cfg = (target = "jira") =>
-    JSON.stringify({ [target]: { tokenEndpoint: `http://localhost:${server.port}/token`, baseUrl: "https://jira.example", audience: "jira-api" } });
+    JSON.stringify({ [target]: { tokenEndpoint: `http://127.0.0.1:${server.port}/token`, baseUrl: "https://jira.example", audience: "jira-api" } });
   return { cfg, count: () => count, requests, stop: () => server.stop(true) };
 }
 
@@ -82,7 +82,7 @@ test("fails closed: ungranted target, missing inbound token, or exchange error",
   // endpoint that refuses the exchange -> null
   const refuse = Bun.serve({ port: 0, fetch: () => new Response("nope", { status: 400 }) });
   try {
-    const cfg = JSON.stringify({ jira: { tokenEndpoint: `http://localhost:${refuse.port}/token`, baseUrl: "https://j", audience: "j" } });
+    const cfg = JSON.stringify({ jira: { tokenEndpoint: `http://127.0.0.1:${refuse.port}/token`, baseUrl: "https://j", audience: "j" } });
     expect(await new OboTokenVaultBroker(cfg).issue(alice, "jira")).toBeNull();
   } finally {
     refuse.stop(true);

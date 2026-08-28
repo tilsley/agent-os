@@ -19,7 +19,7 @@ function mockOpa(decision: unknown, status = 200) {
       return new Response(JSON.stringify({ result: decision }), { status, headers: { "content-type": "application/json" } });
     },
   });
-  return { url: `http://localhost:${server.port}/v1/data/agentos/authz`, received: () => received, stop: () => server.stop(true) };
+  return { url: `http://127.0.0.1:${server.port}/v1/data/agentos/authz`, received: () => received, stop: () => server.stop(true) };
 }
 
 test("sends input {principal, action, resource} and permits on allow:true", async () => {
@@ -64,7 +64,7 @@ test("fails closed on undefined result (no matching rule)", async () => {
 
 test("fails closed when OPA is unreachable", async () => {
   // nothing listening on this port
-  const d = await new OpaAuthorizer("http://localhost:1/v1/data/agentos/authz").authorize(alice, "run:create");
+  const d = await new OpaAuthorizer("http://127.0.0.1:1/v1/data/agentos/authz").authorize(alice, "run:create");
   expect(d.allow).toBe(false);
   expect(d.reason).toContain("unreachable");
 });

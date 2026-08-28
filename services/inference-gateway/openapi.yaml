@@ -95,7 +95,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-        "500": { $ref: "#/components/responses/InferenceFailed" }
+        # The passthrough returns 502 (Bad Gateway) on upstream failure — the
+        # gateway itself is fine (messages.ts). /v1/generate returns 500; these
+        # deliberately differ.
+        "502": { $ref: "#/components/responses/InferenceFailed" }
   /claims:
     post:
       operationId: createClaim

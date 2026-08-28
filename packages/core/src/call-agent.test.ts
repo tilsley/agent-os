@@ -19,7 +19,7 @@ function mockA2A() {
     async fetch(req) {
       const url = new URL(req.url);
       if (url.pathname === "/.well-known/agent-card.json") {
-        return Response.json({ name: "enrich-bot", protocolVersion: "0.3.0", url: `http://localhost:${server.port}/a2a`, securitySchemes: { bearer: { type: "http", scheme: "bearer" } } });
+        return Response.json({ name: "enrich-bot", protocolVersion: "0.3.0", url: `http://127.0.0.1:${server.port}/a2a`, securitySchemes: { bearer: { type: "http", scheme: "bearer" } } });
       }
       authSeen = req.headers.get("authorization") ?? undefined;
       const { id, method } = await req.json();
@@ -29,7 +29,7 @@ function mockA2A() {
       return Response.json({ jsonrpc: "2.0", id, error: { code: -32601, message: "nope" } });
     },
   });
-  return { base: `http://localhost:${server.port}`, authSeen: () => authSeen, stop: () => server.stop(true) };
+  return { base: `http://127.0.0.1:${server.port}`, authSeen: () => authSeen, stop: () => server.stop(true) };
 }
 
 const broker = (grant: BrokeredCredential | null): CredentialBroker => ({
