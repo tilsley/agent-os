@@ -75,6 +75,10 @@ jobs:
           done
           echo "all deploy scripts parse"
 
+      # ConsoleStack packages apps/console/dist as an asset — synth fails without it.
+      - name: Build console SPA (ConsoleStack asset)
+        run: bun run --cwd apps/console build
+
       # CDK synth — compiles every stack's TS and validates Docker/asset context
       # paths. No deploy, no creds, no docker image build (synth only).
       - name: CDK synth (all stacks, no deploy)
