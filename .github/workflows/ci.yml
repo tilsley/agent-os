@@ -39,12 +39,10 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: bun install --frozen-lockfile
 
-      # Unit + component tests. cdk.out does not exist on a clean checkout, so
-      # bun test never scans the CDK asset copies. Run this BEFORE any synth.
-      # A few tests need a live loopback HTTP server (Bun.serve) that is unreliable
-      # on hermetic runners; they self-skip when CI=1 (GitHub sets it) and run
-      # locally or with RUN_INTEGRATION=1. They are the Stage-2 integration lane.
-      - name: Unit + component tests (integration tests gated by RUN_INTEGRATION)
+      # Unit + component + integration tests (all hermetic). cdk.out does not exist
+      # on a clean checkout, so bun test never scans the CDK asset copies. Run this
+      # BEFORE any synth.
+      - name: Tests
         run: bun test
 
       # Import-resolution + transpile check for entrypoints (bun build, not tsc —

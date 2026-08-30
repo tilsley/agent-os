@@ -3,11 +3,7 @@
  * { input: { principal, action, resource } } to OPA's Data API, reads the decision
  * document, and FAILS CLOSED when OPA errors or is unreachable.
  */
-import { test as baseTest, expect } from "bun:test";
-// Integration: exercises a live loopback HTTP server (Bun.serve), unreliable on
-// hermetic CI runners — this is really an integration test, not a unit test. Runs
-// by default; the CI unit lane sets CI=1 so it skips there. Force with RUN_INTEGRATION=1.
-const test = baseTest.skipIf(!!process.env.CI && !process.env.RUN_INTEGRATION);
+import { test, expect } from "bun:test";
 import { OpaAuthorizer } from "./opa-authorizer";
 import type { Principal } from "../gate";
 

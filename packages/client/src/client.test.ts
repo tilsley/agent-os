@@ -3,9 +3,15 @@
  * cache/refresh discipline (one grant in flight, refresh before expiry) and the
  * gateway client's wire shape + fail-with-status errors.
  */
-import { test, expect } from "bun:test";
+import { test, expect, afterEach } from "bun:test";
 import { machineTokenProvider } from "./machine-login";
 import { GatewayClient, GatewayError } from "./gateway";
+
+// Restore global fetch after every test. Without this, mockFetch's override leaks
+// into every test FILE bun runs afterwards (shared process) — it poisoned obo/opa/
+// call-agent on CI with a stray 402, order-dependently. Isolation, not loopback.
+const realFetch = globalThis.fetch;
+afterEach(() => { globalThis.fetch = realFetch; });
 
 function mockFetch(handler: (url: string, init?: RequestInit) => Response | Promise<Response>) {
   const calls: Array<{ url: string; init?: RequestInit }> = [];

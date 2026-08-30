@@ -4,11 +4,7 @@
  * brokered OBO token in the standard Authorization header, returns the artifact text,
  * and is broker-gated (default-deny).
  */
-import { test as baseTest, expect } from "bun:test";
-// Integration: exercises a live loopback HTTP server (Bun.serve), unreliable on
-// hermetic CI runners — this is really an integration test, not a unit test. Runs
-// by default; the CI unit lane sets CI=1 so it skips there. Force with RUN_INTEGRATION=1.
-const test = baseTest.skipIf(!!process.env.CI && !process.env.RUN_INTEGRATION);
+import { test, expect } from "bun:test";
 import { callAgentTool } from "./tools";
 import type { CredentialBroker, BrokeredCredential } from "./credentials";
 import type { Principal } from "./gate";
