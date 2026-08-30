@@ -16,6 +16,7 @@ function toSpec(obj: any): AgentSpec {
   return {
     name: obj?.metadata?.name,
     tenant: s.tenant,
+    description: s.description,
     model: s.model,
     systemPrompt: s.systemPrompt,
     tools: s.tools,

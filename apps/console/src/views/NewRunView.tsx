@@ -1,13 +1,49 @@
 import { useEffect, useState } from "react";
 import { Api, ApiError, type AgentSpec, type DispatchMode } from "../api";
 
-/** Human names for the substrates behind the dispatch seam (ADR-0031/0042). */
-const DISPATCH_LABELS: Record<DispatchMode, string> = {
-  inprocess: "In-process (dev)",
-  runtask: "Fargate task",
-  agentcore: "AgentCore microVM",
-  agentengine: "Vertex Agent Runtime (GCP)",
+type AgentKind = NonNullable<AgentSpec["kind"]>;
+
+/** What each execution kind actually does — the fallback blurb when an agent
+ *  carries no authored `description`. Keep in sync with core's AgentSpec.kind docs. */
+const KIND_INFO: Record<AgentKind, { label: string; blurb: string }> = {
+  loop: {
+    label: "loop",
+    blurb: "The platform drives the think → do → gate loop with this agent's prompt and tools.",
+  },
+  coder: {
+    label: "coder",
+    blurb:
+      "A coding loop: clones the target repo into a workspace, edits it, and pushes a run/<id> branch when it finishes.",
+  },
+  "claude-code": {
+    label: "claude-code",
+    blurb:
+      "One headless Claude Code session in its own Fargate task — the harness owns the whole run. Always rides Fargate.",
+  },
+  sandboxed: {
+    label: "sandboxed",
+    blurb: "A self-contained delegated agent runs inside the sandbox; its inference routes through the gateway.",
+  },
 };
+
+const DEFAULT_BLURB = "No named agent — the runtime's built-in default loop with the standard toolset. A good first run.";
+
+/** Human names + blurbs for the substrates behind the dispatch seam (ADR-0031/0042). */
+const DISPATCH_INFO: Record<DispatchMode, { label: string; blurb: string }> = {
+  inprocess: { label: "In-process (dev)", blurb: "Runs inside the API process — fastest, for local/dev." },
+  runtask: { label: "Fargate task", blurb: "Each run gets its own AWS Fargate task — isolated, pay-per-run." },
+  agentcore: { label: "AgentCore microVM", blurb: "Bedrock AgentCore — a fresh microVM per run for strong isolation." },
+  agentengine: { label: "Vertex Agent Runtime (GCP)", blurb: "Runs on Google Vertex Agent Runtime." },
+};
+
+/** The picker's secondary line: the concrete, populated facts the registry returns. */
+function agentMeta(a: AgentSpec): string {
+  const parts: string[] = [];
+  if (a.model) parts.push(a.model);
+  if (a.maxSteps) parts.push(`${a.maxSteps} steps`);
+  if (a.tools?.length) parts.push(`${a.tools.length} tool${a.tools.length === 1 ? "" : "s"}`);
+  return parts.join(" · ");
+}
 
 export function NewRunView({ api, onUnauthorized }: { api: Api; onUnauthorized: () => void }) {
   const [agents, setAgents] = useState<AgentSpec[]>([]);
@@ -59,6 +95,13 @@ export function NewRunView({ api, onUnauthorized }: { api: Api; onUnauthorized: 
     }
   };
 
+  // the default loop, then every registered agent — one card each
+  const options: (AgentSpec & { isDefault?: boolean })[] = [
+    { name: "", description: DEFAULT_BLURB, isDefault: true },
+    ...agents,
+  ];
+  const substrateBlurb = DISPATCH_INFO[substrate || (dispatch?.default ?? "runtask")]?.blurb;
+
   return (
     <>
       <div className="page-head">
@@ -75,32 +118,51 @@ export function NewRunView({ api, onUnauthorized }: { api: Api; onUnauthorized: 
             autoFocus
           />
         </label>
-        <label>
-          Agent
-          <select value={agent} onChange={(e) => setAgent(e.target.value)}>
-            <option value="">default loop</option>
-            {agents.map((a) => (
-              <option key={a.name} value={a.name}>
-                {a.name}
-                {a.kind && a.kind !== "loop" ? ` (${a.kind})` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
+
+        <fieldset className="picker">
+          <legend>Agent</legend>
+          <div className="cards" role="radiogroup" aria-label="Agent">
+            {options.map((a) => {
+              const info = a.kind ? KIND_INFO[a.kind] : undefined;
+              const blurb = a.description ?? info?.blurb ?? "";
+              const meta = a.isDefault ? "" : agentMeta(a);
+              const selected = agent === a.name;
+              return (
+                <label key={a.name || "__default"} className={`card${selected ? " sel" : ""}`}>
+                  <input
+                    type="radio"
+                    name="agent"
+                    value={a.name}
+                    checked={selected}
+                    onChange={() => setAgent(a.name)}
+                  />
+                  <span className="card-head">
+                    <span className="card-name">{a.isDefault ? "default loop" : a.name}</span>
+                    {info && <span className={`badge ${a.kind}`}>{info.label}</span>}
+                  </span>
+                  {blurb && <span className="card-blurb">{blurb}</span>}
+                  {meta && <span className="card-meta">{meta}</span>}
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+
         {dispatch && dispatch.modes.length > 1 && !isSubstrateWelded && (
           <label>
             Substrate{" "}
             <span className="hint">(where the run executes — claude-code agents always ride Fargate)</span>
             <select value={substrate} onChange={(e) => setSubstrate(e.target.value as DispatchMode | "")}>
-              <option value="">{DISPATCH_LABELS[dispatch.default] ?? dispatch.default} (default)</option>
+              <option value="">{DISPATCH_INFO[dispatch.default]?.label ?? dispatch.default} (default)</option>
               {dispatch.modes
                 .filter((m) => m !== dispatch.default)
                 .map((m) => (
                   <option key={m} value={m}>
-                    {DISPATCH_LABELS[m] ?? m}
+                    {DISPATCH_INFO[m]?.label ?? m}
                   </option>
                 ))}
             </select>
+            {substrateBlurb && <span className="hint">{substrateBlurb}</span>}
           </label>
         )}
         {isCodingAgent && (

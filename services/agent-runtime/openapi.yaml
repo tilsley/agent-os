@@ -373,6 +373,10 @@ components:
           type: string
           enum: [loop, sandboxed, claude-code, coder]
           default: loop
+        description:
+          type: string
+          maxLength: 280
+          description: Human-readable blurb shown in the console's agent picker.
         model: { type: string, maxLength: 128 }
         systemPrompt: { type: string, maxLength: 8000 }
         tools:

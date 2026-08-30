@@ -12,6 +12,9 @@ export interface AgentSpec {
   name: string;
   /** Owning tenant (gate). */
   tenant?: string;
+  /** Human-readable blurb — what this agent is for. Surfaced in the console's
+   *  agent picker (ADR-0032); ignored by the runtime. */
+  description?: string;
   /** Model override (else the runtime default). */
   model?: string;
   systemPrompt?: string;

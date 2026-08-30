@@ -49,6 +49,10 @@ export interface AgentSpec {
   name: string;
   description?: string;
   kind?: "loop" | "sandboxed" | "claude-code" | "coder";
+  /** Populated fields the registry returns — surfaced as the picker's meta line. */
+  model?: string;
+  maxSteps?: number;
+  tools?: string[];
 }
 
 export interface BudgetStatus {

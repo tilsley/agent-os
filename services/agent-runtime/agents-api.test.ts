@@ -78,3 +78,11 @@ test("validateAgentSpec drops unknown fields (allowlist projection)", () => {
   const { spec } = validateAgentSpec({ name: "x", systemPrompt: "p", evil: "field", tenant: "spoof" });
   expect(spec).toEqual({ name: "x", kind: "loop", systemPrompt: "p" });
 });
+
+test("validateAgentSpec accepts a description and rejects an over-length one", () => {
+  const ok = validateAgentSpec({ name: "x", description: "Files bugs from a failing run." });
+  expect(ok.spec).toEqual({ name: "x", kind: "loop", description: "Files bugs from a failing run." });
+  const tooLong = validateAgentSpec({ name: "x", description: "z".repeat(281) });
+  expect(tooLong.spec).toBeUndefined();
+  expect(tooLong.error).toMatch(/description/);
+});

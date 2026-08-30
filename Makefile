@@ -38,6 +38,14 @@ outputs: ## print deployed stack outputs (table, role, guardrail id)
 	@aws cloudformation describe-stacks --stack-name AgentOsState   --query 'Stacks[0].Outputs' --output table
 	@aws cloudformation describe-stacks --stack-name AgentOsBedrock --query 'Stacks[0].Outputs' --output table
 
+# --- web console (ADR-0032) + serverless front door (ADR-0031) ---
+deploy-console: whoami ## build the console SPA, then deploy it (S3+CloudFront; auto-invalidates the CDN)
+	bun run --cwd apps/console build
+	cd deploy/aws && bunx cdk deploy AgentOsConsole
+
+deploy-serverless: whoami ## deploy the agent-runtime front door (Lambda) — needed for authored agent descriptions
+	cd deploy/aws && bunx cdk deploy AgentOsServerless
+
 # --- full-mode store (ADR-0027): Aurora Serverless v2, scale-to-zero — deploy per trip ---
 deploy-postgres: whoami ## deploy the full-mode Aurora store (opens 5432 to YOUR current IP)
 	cd deploy/aws && bunx cdk deploy AgentOsPostgres -c dbAllowedCidr=$$(curl -s https://checkip.amazonaws.com)/32 --require-approval never

@@ -27,6 +27,9 @@ export function validateAgentSpec(body: any): { spec?: Omit<AgentSpec, "tenant">
   }
   const kind = body.kind ?? "loop";
   if (!["loop", "sandboxed", "claude-code", "coder"].includes(kind)) return { error: `unknown 'kind' '${kind}'` };
+  if (body.description != null && (typeof body.description !== "string" || body.description.length > 280)) {
+    return { error: "invalid 'description' (string, max 280 chars)" };
+  }
   if (body.systemPrompt != null && (typeof body.systemPrompt !== "string" || body.systemPrompt.length > 8000)) {
     return { error: "invalid 'systemPrompt' (string, max 8000 chars)" };
   }
@@ -47,6 +50,7 @@ export function validateAgentSpec(body: any): { spec?: Omit<AgentSpec, "tenant">
     spec: {
       name,
       kind,
+      ...(body.description != null ? { description: body.description } : {}),
       ...(body.model != null ? { model: body.model } : {}),
       ...(body.systemPrompt != null ? { systemPrompt: body.systemPrompt } : {}),
       ...(body.tools != null ? { tools: body.tools } : {}),
