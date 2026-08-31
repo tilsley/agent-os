@@ -49,8 +49,10 @@ export interface AgentSpec {
   name: string;
   description?: string;
   kind?: "loop" | "sandboxed" | "claude-code" | "coder";
-  /** Populated fields the registry returns — surfaced as the picker's meta line. */
+  /** Populated fields the registry returns — surfaced by the picker. `systemPrompt`
+   *  is the fallback "purpose" when an agent carries no authored `description`. */
   model?: string;
+  systemPrompt?: string;
   maxSteps?: number;
   tools?: string[];
 }

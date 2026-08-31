@@ -553,18 +553,36 @@ main {
   font-size: 13.5px;
   font-weight: 500;
 }
-.form .card-blurb {
+/* what the agent is FOR — the line that carries meaning */
+.form .card-purpose {
   grid-column: 2;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.45;
-  color: var(--muted);
+  color: var(--ink);
 }
+/* separate, labeled metadata: where it gets inference + where it runs */
 .form .card-meta {
   grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 3px;
+}
+.form .facet {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.form .facet .k {
+  font-size: 9.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.form .facet .v {
   font-family: var(--font-data);
   font-size: 11.5px;
-  color: var(--muted);
-  margin-top: 1px;
+  color: var(--ink);
 }
 
 /* kind badge — colour-coded by execution shape (matches the verb palette) */

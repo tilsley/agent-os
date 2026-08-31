@@ -3,32 +3,18 @@ import { Api, ApiError, type AgentSpec, type DispatchMode } from "../api";
 
 type AgentKind = NonNullable<AgentSpec["kind"]>;
 
-/** What each execution kind actually does — the fallback blurb when an agent
- *  carries no authored `description`. Keep in sync with core's AgentSpec.kind docs. */
-const KIND_INFO: Record<AgentKind, { label: string; blurb: string }> = {
-  loop: {
-    label: "loop",
-    blurb: "The platform drives the think → do → gate loop with this agent's prompt and tools.",
-  },
-  coder: {
-    label: "coder",
-    blurb:
-      "A coding loop: clones the target repo into a workspace, edits it, and pushes a run/<id> branch when it finishes.",
-  },
-  "claude-code": {
-    label: "claude-code",
-    blurb:
-      "One headless Claude Code session in its own Fargate task — the harness owns the whole run. Always rides Fargate.",
-  },
-  sandboxed: {
-    label: "sandboxed",
-    blurb: "A self-contained delegated agent runs inside the sandbox; its inference routes through the gateway.",
-  },
+/** Per-kind: the badge label + a SHORT purpose gloss (last-resort only — used when an
+ *  agent has neither an authored description nor a systemPrompt to speak for it). */
+const KIND_INFO: Record<AgentKind, { label: string; gloss: string }> = {
+  loop: { label: "loop", gloss: "General-purpose reasoning agent." },
+  coder: { label: "coder", gloss: "Writes code in a real repo workspace." },
+  "claude-code": { label: "claude-code", gloss: "A headless Claude Code session." },
+  sandboxed: { label: "sandboxed", gloss: "A delegated agent that runs in the sandbox." },
 };
 
-const DEFAULT_BLURB = "No named agent — the runtime's built-in default loop with the standard toolset. A good first run.";
+const DEFAULT_PURPOSE = "The built-in default loop — general reasoning with the standard toolset. A good first run.";
 
-/** Human names + blurbs for the substrates behind the dispatch seam (ADR-0031/0042). */
+/** Human names for the substrates behind the dispatch seam (ADR-0031/0042). */
 const DISPATCH_INFO: Record<DispatchMode, { label: string; blurb: string }> = {
   inprocess: { label: "In-process (dev)", blurb: "Runs inside the API process — fastest, for local/dev." },
   runtask: { label: "Fargate task", blurb: "Each run gets its own AWS Fargate task — isolated, pay-per-run." },
@@ -36,13 +22,35 @@ const DISPATCH_INFO: Record<DispatchMode, { label: string; blurb: string }> = {
   agentengine: { label: "Vertex Agent Runtime (GCP)", blurb: "Runs on Google Vertex Agent Runtime." },
 };
 
-/** The picker's secondary line: the concrete, populated facts the registry returns. */
-function agentMeta(a: AgentSpec): string {
-  const parts: string[] = [];
-  if (a.model) parts.push(a.model);
-  if (a.maxSteps) parts.push(`${a.maxSteps} steps`);
-  if (a.tools?.length) parts.push(`${a.tools.length} tool${a.tools.length === 1 ? "" : "s"}`);
-  return parts.join(" · ");
+/** Strip the region/provider prefix and the date/version suffix off a model id so the
+ *  picker shows "claude-haiku-4-5", not "eu.anthropic.claude-haiku-4-5-20251001-v1:0". */
+function prettyModel(m: string): string {
+  return m
+    .replace(/^(us|eu|apac|ap)\./, "")
+    .replace(/^(anthropic|amazon|meta|mistral|cohere|google|deepseek)\./, "")
+    .replace(/-\d{8}(-v\d+(:\d+)?)?$/, "")
+    .replace(/-v\d+:\d+$/, "");
+}
+
+/** What the agent is FOR: authored blurb → its own instructions → a short kind gloss. */
+function purposeOf(a: AgentSpec): string {
+  if (a.description) return a.description;
+  if (a.systemPrompt) {
+    const firstLine = (a.systemPrompt.trim().split("\n")[0] ?? "").trim();
+    return firstLine.length > 160 ? firstLine.slice(0, 157) + "…" : firstLine;
+  }
+  return a.kind ? KIND_INFO[a.kind].gloss : "";
+}
+
+/** The separate, labeled metadata facets: where it gets inference + where it runs. */
+function metaFacets(a: AgentSpec, defaultSubstrate: string): { k: string; v: string; title?: string }[] {
+  const facets: { k: string; v: string; title?: string }[] = [];
+  if (a.model) facets.push({ k: "inference", v: prettyModel(a.model), title: a.model });
+  // claude-code is welded to Fargate; everything else rides the deployment's default substrate.
+  facets.push({ k: "runs on", v: a.kind === "claude-code" ? "Fargate (fixed)" : defaultSubstrate });
+  if (a.maxSteps) facets.push({ k: "max steps", v: String(a.maxSteps) });
+  if (a.tools?.length) facets.push({ k: "tools", v: String(a.tools.length) });
+  return facets;
 }
 
 export function NewRunView({ api, onUnauthorized }: { api: Api; onUnauthorized: () => void }) {
@@ -95,9 +103,11 @@ export function NewRunView({ api, onUnauthorized }: { api: Api; onUnauthorized: 
     }
   };
 
+  // "runs on" for non-welded agents = the deployment's default substrate (per-run overridable)
+  const defaultSubstrate = dispatch ? DISPATCH_INFO[dispatch.default]?.label ?? dispatch.default : "the default substrate";
   // the default loop, then every registered agent — one card each
   const options: (AgentSpec & { isDefault?: boolean })[] = [
-    { name: "", description: DEFAULT_BLURB, isDefault: true },
+    { name: "", description: DEFAULT_PURPOSE, isDefault: true },
     ...agents,
   ];
   const substrateBlurb = DISPATCH_INFO[substrate || (dispatch?.default ?? "runtask")]?.blurb;
@@ -124,8 +134,8 @@ export function NewRunView({ api, onUnauthorized }: { api: Api; onUnauthorized: 
           <div className="cards" role="radiogroup" aria-label="Agent">
             {options.map((a) => {
               const info = a.kind ? KIND_INFO[a.kind] : undefined;
-              const blurb = a.description ?? info?.blurb ?? "";
-              const meta = a.isDefault ? "" : agentMeta(a);
+              const purpose = purposeOf(a);
+              const facets = a.isDefault ? [{ k: "runs on", v: defaultSubstrate }] : metaFacets(a, defaultSubstrate);
               const selected = agent === a.name;
               return (
                 <label key={a.name || "__default"} className={`card${selected ? " sel" : ""}`}>
@@ -138,10 +148,23 @@ export function NewRunView({ api, onUnauthorized }: { api: Api; onUnauthorized: 
                   />
                   <span className="card-head">
                     <span className="card-name">{a.isDefault ? "default loop" : a.name}</span>
-                    {info && <span className={`badge ${a.kind}`}>{info.label}</span>}
+                    {info && (
+                      <span className={`badge ${a.kind}`} title={info.gloss}>
+                        {info.label}
+                      </span>
+                    )}
                   </span>
-                  {blurb && <span className="card-blurb">{blurb}</span>}
-                  {meta && <span className="card-meta">{meta}</span>}
+                  {purpose && <span className="card-purpose">{purpose}</span>}
+                  <span className="card-meta">
+                    {facets.map((f) => (
+                      <span className="facet" key={f.k}>
+                        <span className="k">{f.k}</span>
+                        <span className="v" title={f.title}>
+                          {f.v}
+                        </span>
+                      </span>
+                    ))}
+                  </span>
                 </label>
               );
             })}
