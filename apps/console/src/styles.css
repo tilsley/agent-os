@@ -433,11 +433,12 @@ main {
   background: var(--panel);
   border: 1px solid var(--rule);
   border-radius: 10px;
-  padding: 22px;
-  max-width: 660px;
+  padding: 24px 26px;
+  /* fill the main column (rail + padding already frame it); cap only on ultrawide */
+  max-width: 1280px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 .form label {
   display: flex;
@@ -621,8 +622,8 @@ main {
 }
 .form .facets {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 11px 18px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 11px 20px;
 }
 .form .facet {
   display: flex;
