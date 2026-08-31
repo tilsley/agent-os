@@ -126,8 +126,15 @@ export class Api {
         ...(dispatch ? { dispatch } : {}),
       }),
     });
-  /** The runtime's adapter bundle (GET /info) — the substrate selector reads `dispatch`. */
-  info = () => this.req<{ dispatch?: { default: DispatchMode; modes: DispatchMode[] } }>("/info");
+  /** The runtime's adapter bundle (GET /info) — the picker reads inference/sandbox/dispatch
+   *  to describe, per agent, where it runs and where it gets inference. */
+  info = () =>
+    this.req<{
+      inference?: string;
+      model?: string;
+      sandbox?: string;
+      dispatch?: { default: DispatchMode; modes: DispatchMode[] };
+    }>("/info");
   listAgents = () => this.req<AgentSpec[]>("/agents");
   budget = (tenant: string) => this.req<BudgetStatus>(`/tenants/${encodeURIComponent(tenant)}/budget`);
   usage = (tenant: string) => this.req<UsageStatus>(`/tenants/${encodeURIComponent(tenant)}/usage`);
