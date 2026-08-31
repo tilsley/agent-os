@@ -97,6 +97,7 @@ export function NewRunView({ api, onUnauthorized }: { api: Api; onUnauthorized: 
   const [substrate, setSubstrate] = useState<DispatchMode | "">("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [catalogFailed, setCatalogFailed] = useState(false);
 
   // repo targeting applies to coding runs (ADR-0034/0046): the agent is repo-agnostic,
   // the run names the repo, the gate authorizes it. claude-code is welded to Fargate
@@ -109,9 +110,13 @@ export function NewRunView({ api, onUnauthorized }: { api: Api; onUnauthorized: 
   useEffect(() => {
     api
       .listAgents()
-      .then(setAgents)
+      .then((a) => {
+        setAgents(a);
+        setCatalogFailed(false);
+      })
       .catch((e) => {
         if (e instanceof ApiError && e.status === 401) onUnauthorized();
+        else setCatalogFailed(true);
       });
     // the deployment's substrates + inference — described per agent, and read by the selector
     api
@@ -133,7 +138,8 @@ export function NewRunView({ api, onUnauthorized }: { api: Api; onUnauthorized: 
       window.location.hash = `#/runs/${r.runId}`;
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) return onUnauthorized();
-      if (e instanceof ApiError && e.status === 402) setError("Budget exceeded — the gate refused this run.");
+      if (e instanceof ApiError && e.status === 402)
+        setError("Budget exceeded — the gate refused this run. Raise the tenant budget or wait for the next period.");
       else setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
     }
@@ -155,9 +161,11 @@ export function NewRunView({ api, onUnauthorized }: { api: Api; onUnauthorized: 
         <label>
           Task
           <textarea
+            name="task"
             rows={5}
             value={task}
             placeholder="What should the agent do?"
+            autoComplete="off"
             onChange={(e) => setTask(e.target.value)}
             autoFocus
           />
@@ -165,6 +173,9 @@ export function NewRunView({ api, onUnauthorized }: { api: Api; onUnauthorized: 
 
         <fieldset className="picker">
           <legend>Agent</legend>
+          {catalogFailed && (
+            <p className="hint">Couldn't load the agent catalog — showing the default loop only. Retry by reloading.</p>
+          )}
           <div className="cards" role="radiogroup" aria-label="Agent">
             {options.map((a) => {
               const info = a.kind ? KIND_INFO[a.kind] : undefined;
@@ -227,12 +238,19 @@ export function NewRunView({ api, onUnauthorized }: { api: Api; onUnauthorized: 
             Repo <span className="hint">(optional — owner/name; the run clones it and pushes a run/&lt;id&gt; branch)</span>
             <input
               type="text"
+              name="repo"
               value={repo}
               placeholder="tilsley/chart-val"
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               onChange={(e) => setRepo(e.target.value)}
             />
           </label>
         )}
+        {/* persistent SR live region (absolute → no layout gap) + the visible error */}
+        <div className="sr-only" aria-live="polite">{error ?? ""}</div>
         {error && <p className="error">{error}</p>}
         <div className="actions">
           <button className="button" disabled={busy || !task.trim()} onClick={launch}>
