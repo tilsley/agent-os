@@ -434,9 +434,10 @@ main {
   border: 1px solid var(--rule);
   border-radius: 10px;
   padding: 24px 26px;
-  /* left-aligned content column (sidebar layouts don't center); wide enough for the
-     two-pane picker, narrow enough that inputs stay comfortable to scan */
-  max-width: 900px;
+  /* left-aligned content column (sidebar layouts don't center). Fluid cap: fills the
+     main column on normal screens, breathes up on big ones, never sprawls on ultrawide.
+     (max-width only caps — below it the panel already fills the space.) */
+  max-width: clamp(780px, 76vw, 1080px);
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -450,6 +451,11 @@ main {
   text-transform: uppercase;
   color: var(--muted);
   font-weight: 500;
+}
+/* the prompt box: let the picker use the full column, but keep the task input
+   at a comfortable typing measure even when the column is wide */
+.form textarea {
+  max-width: 46rem;
 }
 .form textarea,
 .form select {
