@@ -434,8 +434,9 @@ main {
   border: 1px solid var(--rule);
   border-radius: 10px;
   padding: 24px 26px;
-  /* fill the main column (rail + padding already frame it); cap only on ultrawide */
-  max-width: 1280px;
+  /* left-aligned content column (sidebar layouts don't center); wide enough for the
+     two-pane picker, narrow enough that inputs stay comfortable to scan */
+  max-width: 900px;
   display: flex;
   flex-direction: column;
   gap: 18px;
