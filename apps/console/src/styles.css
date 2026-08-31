@@ -626,6 +626,7 @@ main {
   font-size: 13px;
   line-height: 1.5;
   color: var(--ink);
+  max-width: 68ch; /* keep the description at a readable measure on wide screens */
 }
 .form .facets {
   display: grid;
