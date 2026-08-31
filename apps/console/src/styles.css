@@ -486,9 +486,19 @@ main {
   opacity: 0.5;
   cursor: default;
 }
+/* the primary action wears the "run" green (the go signal) */
+.button.go {
+  background: var(--gate);
+}
+.button.go:hover {
+  background: color-mix(in srgb, var(--gate) 86%, #000);
+}
 .form .hint {
   color: var(--muted);
   font-size: 12.5px;
+  text-transform: none; /* hints inside uppercase labels must read normally */
+  letter-spacing: normal;
+  font-weight: 400;
 }
 
 .error {
@@ -496,7 +506,7 @@ main {
   font-size: 13px;
 }
 
-/* ---------- agent picker (navigable cards, one per agent) ---------- */
+/* ---------- agent picker: two-pane (scannable list + one detail panel) ---------- */
 
 .form .picker {
   border: none;
@@ -505,7 +515,7 @@ main {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 .form .picker legend {
   padding: 0;
@@ -515,23 +525,27 @@ main {
   color: var(--muted);
   font-weight: 500;
 }
-.form .cards {
+.form .two-pane {
+  display: grid;
+  grid-template-columns: 236px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.form .agent-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 340px;
+  gap: 5px;
+  max-height: 300px;
   overflow-y: auto;
-  /* room so focus rings + selected border aren't clipped by the scroll box */
   padding: 2px;
   margin: -2px;
 }
 
-/* each card is a <label>; undo the inherited .form label styling */
-.form .card {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 3px 10px;
-  align-items: start;
+/* each row is a <label> wrapping a (visually hidden) radio — undo inherited label styling */
+.form .arow {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   text-transform: none;
   letter-spacing: normal;
   font-weight: 400;
@@ -539,69 +553,168 @@ main {
   background: var(--bench);
   border: 1px solid var(--rule);
   border-radius: 8px;
-  padding: 11px 13px;
+  padding: 9px 11px;
   cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
 }
-.form .card:hover {
+.form .arow:hover {
   border-color: var(--muted);
 }
-.form .card.sel {
-  border-color: var(--think);
-  background: color-mix(in srgb, var(--think) 6%, var(--panel));
-  box-shadow: 0 0 0 1px var(--think);
+.form .arow.sel {
+  border-color: var(--gate);
+  background: color-mix(in srgb, var(--gate) 8%, var(--panel));
+  box-shadow: inset 3px 0 0 var(--gate);
 }
-.form .card input[type="radio"] {
-  grid-row: 1 / span 3;
-  margin: 2px 0 0;
-  accent-color: var(--think);
+.form .arow:focus-within {
+  outline: 2px solid var(--gate);
+  outline-offset: 1px;
 }
-.form .card-head {
+.form .arow input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.form .arow .an {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 7px;
 }
-.form .card-name {
+.form .arow .aname {
   font-family: var(--font-data);
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 500;
 }
-/* what the agent is FOR — the line that carries meaning */
-.form .card-purpose {
-  grid-column: 2;
+.form .arow .ap {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* the detail panel — the selected agent's facts, shown once and large */
+.form .agent-detail {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 15px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  align-self: start;
+}
+.form .agent-detail .dh {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.form .agent-detail .dname {
+  font-family: var(--font-data);
+  font-size: 15px;
+  font-weight: 600;
+}
+.form .agent-detail .dp {
   font-size: 13px;
-  line-height: 1.45;
+  line-height: 1.5;
   color: var(--ink);
 }
-/* separate, labeled metadata: where it gets inference + where it runs */
-.form .card-meta {
-  grid-column: 2;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  margin-top: 3px;
+.form .facets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 11px 18px;
 }
 .form .facet {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 .form .facet .k {
   font-size: 9.5px;
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--muted);
+  font-weight: 500;
 }
 .form .facet .v {
   font-family: var(--font-data);
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--ink);
+}
+.form .facet .v.run {
+  color: var(--gate);
+}
+
+/* ---------- "where it runs" group (substrate + repo) ---------- */
+.form .where {
+  border: 1px dashed var(--rule);
+  border-radius: 10px;
+  padding: 14px 15px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.form .where > .gh {
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+}
+.form .where .cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.form .welded {
+  font-family: var(--font-data);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--bench);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 10px 12px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.form .welded.off {
+  color: var(--muted);
+}
+
+/* ---------- run summary strip (assembles the run before Launch) ---------- */
+.form .summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  background: var(--bench);
+  border: 1px solid var(--rule);
+  border-radius: 9px;
+  padding: 10px 13px;
+  font-family: var(--font-data);
+  font-size: 12.5px;
+  color: var(--ink);
+}
+.form .summary .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gate);
+  flex: none;
+}
+.form .summary .s-agent {
+  color: var(--gate);
+  font-weight: 500;
+}
+.form .summary .s-arr,
+.form .summary .s-muted {
+  color: var(--muted);
 }
 
 /* kind badge — colour-coded by execution shape (matches the verb palette) */
 .form .badge {
   font-family: var(--font-data);
-  font-size: 10.5px;
+  font-size: 10px;
   letter-spacing: 0.04em;
   text-transform: lowercase;
   padding: 1px 7px;
@@ -610,9 +723,14 @@ main {
   color: var(--muted);
   white-space: nowrap;
 }
-.form .badge.coder,
-.form .badge.claude-code {
+.form .badge.loop {
+  color: var(--think);
+}
+.form .badge.coder {
   color: var(--do);
+}
+.form .badge.claude-code {
+  color: var(--gate);
 }
 .form .badge.sandboxed {
   color: var(--think);
@@ -668,5 +786,13 @@ main {
   }
   .runs .task {
     max-width: 160px;
+  }
+  /* stack the two-pane picker and grouped columns on narrow screens */
+  .form .two-pane,
+  .form .where .cols {
+    grid-template-columns: 1fr;
+  }
+  .form .agent-list {
+    max-height: 220px;
   }
 }

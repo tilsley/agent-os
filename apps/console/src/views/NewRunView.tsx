@@ -3,8 +3,8 @@ import { Api, ApiError, type AgentSpec, type DispatchMode } from "../api";
 
 type AgentKind = NonNullable<AgentSpec["kind"]>;
 
-/** What the deployment advertises at GET /info — the picker uses it to describe,
- *  per agent, where it runs and where it gets inference. */
+/** What the deployment advertises at GET /info — used to describe, per agent, where
+ *  it runs and where it gets inference. */
 interface Deployment {
   inference?: string;
   model?: string;
@@ -57,16 +57,6 @@ function purposeOf(a: AgentSpec): string {
   return a.kind ? KIND_INFO[a.kind].gloss : "";
 }
 
-/** Where the run's loop executes. claude-code is welded to Fargate; every other kind
- *  rides whichever substrates the deployment offers (the run's Substrate picker). */
-function runsOn(kind: AgentKind | undefined, dep: Deployment): string {
-  if (kind === "claude-code") return "Fargate (fixed)";
-  const modes = dep.dispatch?.modes ?? [];
-  const labels = modes.map((m) => DISPATCH_INFO[m]?.short ?? m);
-  if (labels.length === 0) return dep.dispatch ? DISPATCH_INFO[dep.dispatch.default]?.short ?? dep.dispatch.default : "—";
-  return labels.join(" or ");
-}
-
 /** Where the agent gets inference. claude-code runs its own headless session (subscription,
  *  not the gateway); every other kind calls the deployment's inference provider. */
 function inferenceOf(a: AgentSpec, dep: Deployment): string {
@@ -76,11 +66,18 @@ function inferenceOf(a: AgentSpec, dep: Deployment): string {
   return model ? prettyModel(model) + provider : "runtime default";
 }
 
-/** The separate, labeled metadata facets shown under each agent's purpose. */
-function facetsFor(a: AgentSpec, dep: Deployment): { k: string; v: string; title?: string }[] {
-  const facets: { k: string; v: string; title?: string }[] = [
+/** Where the run's loop executes — the substrate actually chosen for this run.
+ *  claude-code is welded to Fargate; everything else rides the picked substrate. */
+function runsOnChosen(kind: AgentKind | undefined, mode: DispatchMode | undefined): string {
+  if (kind === "claude-code") return "Fargate (fixed)";
+  return (mode && DISPATCH_INFO[mode]?.short) || "Fargate";
+}
+
+/** The detail panel's labeled facts for the selected agent. */
+function facetsFor(a: AgentSpec, dep: Deployment, mode: DispatchMode | undefined) {
+  const facets: { k: string; v: string; run?: boolean; title?: string }[] = [
     { k: "inference", v: inferenceOf(a, dep), title: a.model },
-    { k: "runs on", v: runsOn(a.kind, dep) },
+    { k: "runs on", v: runsOnChosen(a.kind, mode), run: true },
   ];
   if (dep.sandbox && a.kind !== "claude-code") facets.push({ k: "tools run in", v: prettyProvider(dep.sandbox) + " sandbox" });
   if (a.maxSteps) facets.push({ k: "max steps", v: String(a.maxSteps) });
@@ -106,6 +103,8 @@ export function NewRunView({ api, onUnauthorized }: { api: Api; onUnauthorized: 
   const isCodingAgent = kind === "claude-code" || kind === "coder";
   const isSubstrateWelded = kind === "claude-code";
   const dispatch = dep.dispatch;
+  // the substrate this run will actually use (welded agents ignore the picker)
+  const chosenMode: DispatchMode | undefined = isSubstrateWelded ? "runtask" : substrate || dispatch?.default;
 
   useEffect(() => {
     api
@@ -145,24 +144,25 @@ export function NewRunView({ api, onUnauthorized }: { api: Api; onUnauthorized: 
     }
   };
 
-  // the default loop, then every registered agent — one card each
-  const options: (AgentSpec & { isDefault?: boolean })[] = [
-    { name: "", description: DEFAULT_PURPOSE, isDefault: true },
-    ...agents,
-  ];
-  const substrateBlurb = DISPATCH_INFO[substrate || (dispatch?.default ?? "runtask")]?.blurb;
+  // the default loop, then every registered agent — one row each
+  const defaultOption: AgentSpec & { isDefault?: boolean } = { name: "", description: DEFAULT_PURPOSE, isDefault: true };
+  const options: (AgentSpec & { isDefault?: boolean })[] = [defaultOption, ...agents];
+  const selected = options.find((o) => o.name === agent) ?? defaultOption;
+  const selInfo = selected.kind ? KIND_INFO[selected.kind] : undefined;
+  const selName = selected.isDefault ? "default loop" : selected.name;
 
   return (
     <>
       <div className="page-head">
         <h1>New run</h1>
+        <span className="sub">gated: identity → budget → dispatch</span>
       </div>
       <div className="form">
         <label>
           Task
           <textarea
             name="task"
-            rows={5}
+            rows={4}
             value={task}
             placeholder="What should the agent do?"
             autoComplete="off"
@@ -176,87 +176,122 @@ export function NewRunView({ api, onUnauthorized }: { api: Api; onUnauthorized: 
           {catalogFailed && (
             <p className="hint">Couldn't load the agent catalog — showing the default loop only. Retry by reloading.</p>
           )}
-          <div className="cards" role="radiogroup" aria-label="Agent">
-            {options.map((a) => {
-              const info = a.kind ? KIND_INFO[a.kind] : undefined;
-              const purpose = purposeOf(a);
-              const facets = facetsFor(a, dep);
-              const selected = agent === a.name;
-              return (
-                <label key={a.name || "__default"} className={`card${selected ? " sel" : ""}`}>
-                  <input
-                    type="radio"
-                    name="agent"
-                    value={a.name}
-                    checked={selected}
-                    onChange={() => setAgent(a.name)}
-                  />
-                  <span className="card-head">
-                    <span className="card-name">{a.isDefault ? "default loop" : a.name}</span>
-                    {info && (
-                      <span className={`badge ${a.kind}`} title={info.gloss}>
-                        {info.label}
-                      </span>
-                    )}
-                  </span>
-                  {purpose && <span className="card-purpose">{purpose}</span>}
-                  <span className="card-meta">
-                    {facets.map((f) => (
-                      <span className="facet" key={f.k}>
-                        <span className="k">{f.k}</span>
-                        <span className="v" title={f.title}>
-                          {f.v}
-                        </span>
-                      </span>
-                    ))}
-                  </span>
-                </label>
-              );
-            })}
+          <div className="two-pane">
+            <div className="agent-list" role="radiogroup" aria-label="Agent">
+              {options.map((a) => {
+                const info = a.kind ? KIND_INFO[a.kind] : undefined;
+                const isSel = agent === a.name;
+                return (
+                  <label key={a.name || "__default"} className={`arow${isSel ? " sel" : ""}`}>
+                    <input
+                      type="radio"
+                      name="agent"
+                      value={a.name}
+                      checked={isSel}
+                      onChange={() => setAgent(a.name)}
+                    />
+                    <span className="an">
+                      <span className="aname">{a.isDefault ? "default loop" : a.name}</span>
+                      {info && <span className={`badge ${a.kind}`}>{info.label}</span>}
+                    </span>
+                    <span className="ap">{purposeOf(a)}</span>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="agent-detail" aria-live="polite">
+              <div className="dh">
+                <span className="dname">{selName}</span>
+                {selInfo && <span className={`badge ${selected.kind}`}>{selInfo.label}</span>}
+              </div>
+              <p className="dp">{purposeOf(selected)}</p>
+              <div className="facets">
+                {facetsFor(selected, dep, chosenMode).map((f) => (
+                  <div className="facet" key={f.k}>
+                    <span className="k">{f.k}</span>
+                    <span className={`v${f.run ? " run" : ""}`} title={f.title}>
+                      {f.v}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </fieldset>
 
-        {dispatch && dispatch.modes.length > 1 && !isSubstrateWelded && (
-          <label>
-            Substrate{" "}
-            <span className="hint">(where the run executes — claude-code agents always ride Fargate)</span>
-            <select value={substrate} onChange={(e) => setSubstrate(e.target.value as DispatchMode | "")}>
-              <option value="">{DISPATCH_INFO[dispatch.default]?.label ?? dispatch.default} (default)</option>
-              {dispatch.modes
-                .filter((m) => m !== dispatch.default)
-                .map((m) => (
-                  <option key={m} value={m}>
-                    {DISPATCH_INFO[m]?.label ?? m}
-                  </option>
-                ))}
-            </select>
-            {substrateBlurb && <span className="hint">{substrateBlurb}</span>}
-          </label>
-        )}
-        {isCodingAgent && (
-          <label>
-            Repo <span className="hint">(optional — owner/name; the run clones it and pushes a run/&lt;id&gt; branch)</span>
-            <input
-              type="text"
-              name="repo"
-              value={repo}
-              placeholder="tilsley/chart-val"
-              autoComplete="off"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              onChange={(e) => setRepo(e.target.value)}
-            />
-          </label>
-        )}
+        <div className="where">
+          <div className="gh">Where it runs</div>
+          <div className="cols">
+            {isSubstrateWelded ? (
+              <label>
+                Substrate
+                <div className="welded">Fargate — fixed</div>
+                <span className="hint">claude-code always rides Fargate.</span>
+              </label>
+            ) : dispatch && dispatch.modes.length > 1 ? (
+              <label>
+                Substrate
+                <select value={substrate} onChange={(e) => setSubstrate(e.target.value as DispatchMode | "")}>
+                  <option value="">{DISPATCH_INFO[dispatch.default]?.label ?? dispatch.default} (default)</option>
+                  {dispatch.modes
+                    .filter((m) => m !== dispatch.default)
+                    .map((m) => (
+                      <option key={m} value={m}>
+                        {DISPATCH_INFO[m]?.label ?? m}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            ) : (
+              <label>
+                Substrate
+                <div className="welded">{runsOnChosen(kind, chosenMode)}</div>
+              </label>
+            )}
+
+            {isCodingAgent ? (
+              <label>
+                Repo <span className="hint">(optional — owner/name)</span>
+                <input
+                  type="text"
+                  name="repo"
+                  value={repo}
+                  placeholder="tilsley/chart-val"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  onChange={(e) => setRepo(e.target.value)}
+                />
+              </label>
+            ) : (
+              <label>
+                Repo
+                <div className="welded off">— not used by this agent</div>
+              </label>
+            )}
+          </div>
+        </div>
+
+        <div className="summary">
+          <span className="dot" />
+          <span className="s-agent">{selName}</span>
+          <span className="s-arr">→</span>
+          <span>{runsOnChosen(selected.kind, chosenMode)}</span>
+          <span className="s-muted">· {inferenceOf(selected, dep)}</span>
+          {isCodingAgent && <span className="s-muted">· {repo.trim() || "repo optional"}</span>}
+        </div>
+
         {/* persistent SR live region (absolute → no layout gap) + the visible error */}
         <div className="sr-only" aria-live="polite">{error ?? ""}</div>
         {error && <p className="error">{error}</p>}
+
         <div className="actions">
-          <button className="button" disabled={busy || !task.trim()} onClick={launch}>
+          <button className="button go" disabled={busy || !task.trim()} onClick={launch}>
             {busy ? "Launching…" : "Launch run"}
           </button>
-          <span className="hint">Admission is gated: identity, then budget, then dispatch.</span>
+          <span className="hint">Admission checks identity, then budget, then dispatch.</span>
         </div>
       </div>
     </>
